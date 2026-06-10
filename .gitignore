@@ -1,0 +1,8 @@
+.env
+.omx/
+.DS_Store
+bin/
+build/
+dist/
+coverage.out
+*.test
