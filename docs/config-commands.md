@@ -106,6 +106,7 @@ The successful token issue response did not include `next-key`, `cont-yn`, or
 Do not store issued API tokens in `~/.stock/config`. The config file stores only
 long-lived user credentials.
 
-Token caching is not implemented in this config-command milestone. A future
-token cache must use a separate file outside `~/.stock/config` and must not
-print or commit issued token values.
+Token caching is implemented by API commands that need Kiwoom access tokens,
+starting with `stock accounts list`. The cache uses `~/.stock/token.json`,
+stays separate from `~/.stock/config`, and must not print or commit issued token
+values.

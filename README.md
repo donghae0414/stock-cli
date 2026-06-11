@@ -1,7 +1,7 @@
 # stock-cli
 
 Kiwoom REST API를 사용하기 위한 Go 기반 주식 CLI입니다. 현재 구현된 범위는
-초기 프로젝트 구조와 Kiwoom 기본 설정 명령입니다.
+Kiwoom 기본 설정 명령과 계좌 보유 종목 조회 명령입니다.
 
 ## 준비
 
@@ -53,6 +53,8 @@ set +a
 ./bin/stock config --help
 ./bin/stock config path
 ./bin/stock config show
+./bin/stock accounts --help
+./bin/stock accounts list
 ```
 
 `config show`는 키를 마스킹해서 보여줍니다.
@@ -91,6 +93,41 @@ rm -rf "$QA_HOME"
 `config set`은 TTY 전용 명령이라 사람이 직접 입력해야 합니다. 자동화된 검증은
 테스트 코드와 UltraQA harness에서 임시 HOME과 fake 키로 수행합니다.
 
+## 계좌 보유 종목 조회
+
+`stock accounts list`는 Kiwoom `ka10085` 계좌수익률요청 API를 호출해서 현재
+보유 중인 종목을 JSON 배열로 출력합니다.
+
+```sh
+set -a
+. ./.env
+set +a
+./bin/stock accounts list
+```
+
+출력은 Kiwoom 원본 필드명이 아니라 agent가 읽기 쉬운 snake_case 필드만
+포함합니다.
+
+```json
+[
+  {
+    "stock_code": "000001",
+    "stock_name": "Synthetic Alpha",
+    "current_price": 1200,
+    "purchase_price": 1000,
+    "profit_rate": 20.00,
+    "purchase_amount": 3000,
+    "holding_quantity": 3,
+    "orderable_quantity": 2,
+    "is_credit": false
+  }
+]
+```
+
+보유수량이 `0`인 행과 종목명이 `*`로 시작하는 Kiwoom 상세 행은 제외하고,
+별표 없는 종목별 합산 행만 반환합니다. `profit_rate`는 현재가와 매입가로
+계산해서 소수점 둘째 자리까지 반올림해 출력하며, 매입가가 `0`이면 `null`입니다.
+
 ## Kiwoom 토큰 발급 스펙
 
 직접 호출로 확인한 토큰 발급 스펙은 다음과 같습니다.
@@ -122,6 +159,13 @@ Content-Type: application/json;charset=UTF-8
 }
 ```
 
-성공 응답에서 `next-key`, `cont-yn`, `api-id` 헤더는 관측되지 않았습니다. 토큰
-캐시는 아직 구현하지 않았고, `~/.stock/config`에는 발급 토큰을 저장하지
-않습니다.
+성공 응답에서 `next-key`, `cont-yn`, `api-id` 헤더는 관측되지 않았습니다.
+
+## Kiwoom 토큰 캐시
+
+`stock accounts list`는 실행 시 토큰이 없거나 만료 1분 이내이면 새 토큰을
+발급받고, 발급 토큰을 `~/.stock/token.json`에 저장합니다. `~/.stock/config`에는
+장기 보관용 `appkey`와 `secretkey`만 저장하고 발급 토큰은 저장하지 않습니다.
+
+토큰 캐시 파일은 `0600`, 상위 `~/.stock` 디렉토리는 `0700` 권한으로 보정합니다.
+토큰 값은 CLI 출력, 로그, 문서, git diff에 노출하지 않아야 합니다.

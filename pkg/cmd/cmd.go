@@ -21,6 +21,7 @@ func init() {
 		Version:   Version,
 		ErrWriter: &CommandErrorBuffer,
 		Commands: []*cli.Command{
+			&accountsCmd,
 			&configCmd,
 		},
 	}

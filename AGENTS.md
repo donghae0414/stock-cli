@@ -8,7 +8,8 @@
 - Do not print or commit real Kiwoom credentials or issued tokens.
 - Keep `.env` local-only and permissioned as `0600`.
 - Store long-lived Kiwoom config in `~/.stock/config`; do not store issued access tokens there.
-- Token cache and trading API commands are future work unless explicitly requested.
+- `stock accounts list` uses an issued-token cache at `~/.stock/token.json`; keep it separate from `~/.stock/config`, permissioned as `0600`, and never print or commit token values.
+- Trading API commands are future work unless explicitly requested.
 
 ## Verification
 
