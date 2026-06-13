@@ -26,6 +26,7 @@ type AccountProfitRateRow struct {
 	RemainingQuantity string `json:"rmnd_qty"`
 	OrderableQuantity string `json:"clrn_alow_qty"`
 	CreditType        string `json:"crd_tp"`
+	LoanDate          string `json:"loan_dt"`
 }
 
 func (c *Client) AccountProfitRates(ctx context.Context) (AccountProfitRateResponse, error) {

@@ -128,6 +128,37 @@ set +a
 별표 없는 종목별 합산 행만 반환합니다. `profit_rate`는 현재가와 매입가로
 계산해서 소수점 둘째 자리까지 반올림해 출력하며, 매입가가 `0`이면 `null`입니다.
 
+신용 매수 상세를 대출일별로 확인하려면 `--credit-detail`을 사용합니다.
+
+```sh
+./bin/stock accounts list --credit-detail
+```
+
+이 모드에서는 현금 종목은 계속 표시하고, 종목명이 `*`로 시작하면서
+`crd_tp`가 `00`이 아닌 Kiwoom 신용 상세 행을 개별 표시합니다. 별표 없는
+신용 합산 행은 중복 집계를 피하기 위해 제외합니다. 출력 이름에서는 leading
+`*`를 제거하고, `loan_dt`는 `loan_date`로 출력합니다.
+
+```json
+[
+  {
+    "stock_code": "000003",
+    "stock_name": "Synthetic Credit Detail",
+    "current_price": 2100,
+    "purchase_price": 2000,
+    "profit_rate": 5.00,
+    "purchase_amount": 10000,
+    "holding_quantity": 5,
+    "orderable_quantity": 5,
+    "is_credit": true,
+    "loan_date": "20260601"
+  }
+]
+```
+
+`--credit-detail` 출력에는 기존 필드에 `loan_date`만 추가됩니다. 현금 행의
+`loan_date`는 빈 문자열입니다.
+
 ## Kiwoom 토큰 발급 스펙
 
 직접 호출로 확인한 토큰 발급 스펙은 다음과 같습니다.

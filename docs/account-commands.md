@@ -29,8 +29,13 @@ Important Upbit command-shape facts:
 | Stock command | Purpose |
 | --- | --- |
 | `stock accounts list` | Return normalized current Kiwoom account holdings. |
+| `stock accounts list --credit-detail` | Return cash holdings plus loan-date credit detail rows. |
 
-Command-specific options: none.
+Command-specific options:
+
+| Option | Purpose |
+| --- | --- |
+| `--credit-detail` | Show Kiwoom credit detail rows by loan date while preserving cash rows. |
 
 ## Kiwoom Token Policy
 
@@ -110,7 +115,7 @@ Request body:
 
 The command returns a bare JSON array.
 
-Each item contains only normalized snake_case fields:
+Default `stock accounts list` items contain only normalized snake_case fields:
 
 | Field | Source | Notes |
 | --- | --- | --- |
@@ -144,6 +149,42 @@ Example shape:
     "holding_quantity": 3,
     "orderable_quantity": 2,
     "is_credit": false
+  }
+]
+```
+
+### Credit detail output
+
+`stock accounts list --credit-detail` returns the default fields plus one
+additional field:
+
+| Field | Source | Notes |
+| --- | --- | --- |
+| `loan_date` | `loan_dt` | Kiwoom loan date for credit detail rows; empty string for cash rows. |
+
+Filtering rules:
+
+- Exclude rows where `rmnd_qty` is `0`.
+- Include every cash row where `crd_tp == "00"` and set `loan_date` to an empty string.
+- Include credit detail rows where `stk_nm` starts with `*` and `crd_tp != "00"`.
+- Remove the leading `*` from displayed credit detail `stock_name`.
+- Exclude unstarred credit aggregate rows where `crd_tp != "00"`.
+
+Example shape:
+
+```json
+[
+  {
+    "stock_code": "000003",
+    "stock_name": "Synthetic Credit Detail",
+    "current_price": 2100,
+    "purchase_price": 2000,
+    "profit_rate": 5.00,
+    "purchase_amount": 10000,
+    "holding_quantity": 5,
+    "orderable_quantity": 5,
+    "is_credit": true,
+    "loan_date": "20260601"
   }
 ]
 ```
@@ -197,3 +238,61 @@ PY
 
 Report only the summarized `count` and `schema` unless raw portfolio output is
 explicitly requested.
+
+Credit-detail smoke verification should also avoid printing raw holdings:
+
+```sh
+set -euo pipefail
+umask 077
+set -a
+. ./.env
+set +a
+default_out="$(mktemp -t stock-accounts-list.XXXXXX.json)"
+detail_out="$(mktemp -t stock-accounts-credit-detail.XXXXXX.json)"
+export default_out detail_out
+trap 'rm -f "$default_out" "$detail_out"' EXIT
+./bin/stock accounts list > "$default_out"
+./bin/stock accounts list --credit-detail > "$detail_out"
+python3 - <<'PY'
+import json
+import os
+
+default_expected = {
+    "stock_code",
+    "stock_name",
+    "current_price",
+    "purchase_price",
+    "profit_rate",
+    "purchase_amount",
+    "holding_quantity",
+    "orderable_quantity",
+    "is_credit",
+}
+detail_expected = default_expected | {"loan_date"}
+
+default_data = json.load(open(os.environ["default_out"]))
+detail_data = json.load(open(os.environ["detail_out"]))
+credit_detail_rows = [
+    row for row in detail_data
+    if row["is_credit"] is True and row["loan_date"] != ""
+]
+
+assert isinstance(default_data, list)
+assert isinstance(detail_data, list)
+assert all(set(row) == default_expected for row in default_data)
+assert all(set(row) == detail_expected for row in detail_data)
+assert all(not row["stock_name"].startswith("*") for row in detail_data)
+assert all(row["holding_quantity"] != 0 for row in default_data + detail_data)
+print({
+    "default_count": len(default_data),
+    "detail_count": len(detail_data),
+    "detail_schema": sorted(detail_expected),
+    "credit_detail_rows_with_loan_date": len(credit_detail_rows),
+})
+PY
+```
+
+When the configured account currently has no credit rows, the final
+`credit_detail_rows_with_loan_date` count can be `0`; treat that as live-state
+inconclusive after confirming the raw `ka10085` response has no
+`crd_tp != "00"` rows.
