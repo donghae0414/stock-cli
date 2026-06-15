@@ -119,7 +119,7 @@ set +a
     "purchase_amount": 3000,
     "holding_quantity": 3,
     "orderable_quantity": 2,
-    "is_credit": false
+    "funding_type": "cash"
   }
 ]
 ```
@@ -150,13 +150,15 @@ set +a
     "purchase_amount": 10000,
     "holding_quantity": 5,
     "orderable_quantity": 5,
-    "is_credit": true,
+    "funding_type": "credit",
     "loan_date": "20260601"
   }
 ]
 ```
 
-`--credit-detail` 출력에는 기존 필드에 `loan_date`만 추가됩니다. 현금 행의
+`is_credit` 필드는 제거되었고 `funding_type`을 사용합니다. `funding_type` 값은 `cash` 또는 `credit`이며, 기존 `is_credit == true` 소비자는 `funding_type == "credit"`로 마이그레이션해야 합니다. 향후 주문 command의 현금/신용 입력은 `stock orders create cash` / `stock orders create credit` subcommand로 구분하고, `order_type`은 MARKET/LIMIT 주문 방식에만 사용합니다.
+
+`--credit-detail` 출력에는 기존 `funding_type` 필드에 `loan_date`만 추가됩니다. 현금 행의
 `loan_date`는 빈 문자열입니다.
 
 ## Kiwoom 토큰 발급 스펙

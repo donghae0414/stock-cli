@@ -85,16 +85,30 @@ func runAccountsList(ctx context.Context, opts accountListOptions, unusedArgs []
 	return enc.Encode(holdings)
 }
 
+type FundingType string
+
+const (
+	FundingTypeCash   FundingType = "cash"
+	FundingTypeCredit FundingType = "credit"
+)
+
+func fundingTypeFromKiwoomCreditType(creditType string) FundingType {
+	if creditType == "00" {
+		return FundingTypeCash
+	}
+	return FundingTypeCredit
+}
+
 type accountHolding struct {
-	StockCode         string   `json:"stock_code"`
-	StockName         string   `json:"stock_name"`
-	CurrentPrice      int64    `json:"current_price"`
-	PurchasePrice     int64    `json:"purchase_price"`
-	ProfitRate        *percent `json:"profit_rate"`
-	PurchaseAmount    int64    `json:"purchase_amount"`
-	HoldingQuantity   int64    `json:"holding_quantity"`
-	OrderableQuantity int64    `json:"orderable_quantity"`
-	IsCredit          bool     `json:"is_credit"`
+	StockCode         string      `json:"stock_code"`
+	StockName         string      `json:"stock_name"`
+	CurrentPrice      int64       `json:"current_price"`
+	PurchasePrice     int64       `json:"purchase_price"`
+	ProfitRate        *percent    `json:"profit_rate"`
+	PurchaseAmount    int64       `json:"purchase_amount"`
+	HoldingQuantity   int64       `json:"holding_quantity"`
+	OrderableQuantity int64       `json:"orderable_quantity"`
+	FundingType       FundingType `json:"funding_type"`
 }
 
 type accountHoldingWithLoanDate struct {
@@ -135,9 +149,9 @@ func normalizeAccountHoldings(rows []kiwoom.AccountProfitRateRow) ([]accountHold
 func normalizeCreditDetailAccountHoldings(rows []kiwoom.AccountProfitRateRow) ([]accountHoldingWithLoanDate, error) {
 	holdings := make([]accountHoldingWithLoanDate, 0, len(rows))
 	for _, row := range rows {
-		isCredit := row.CreditType != "00"
+		fundingType := fundingTypeFromKiwoomCreditType(row.CreditType)
 		isDetail := strings.HasPrefix(row.StockName, "*")
-		if isCredit && !isDetail {
+		if fundingType == FundingTypeCredit && !isDetail {
 			continue
 		}
 
@@ -159,7 +173,7 @@ func normalizeCreditDetailAccountHoldings(rows []kiwoom.AccountProfitRateRow) ([
 			return nil, err
 		}
 		loanDate := ""
-		if isCredit {
+		if fundingType == FundingTypeCredit {
 			loanDate = row.LoanDate
 		}
 		holdings = append(holdings, accountHoldingWithLoanDate{
@@ -204,7 +218,7 @@ func buildAccountHolding(row kiwoom.AccountProfitRateRow, stockName string, hold
 		PurchaseAmount:    purchaseAmount,
 		HoldingQuantity:   holdingQuantity,
 		OrderableQuantity: orderableQuantity,
-		IsCredit:          row.CreditType != "00",
+		FundingType:       fundingTypeFromKiwoomCreditType(row.CreditType),
 	}, nil
 }
 

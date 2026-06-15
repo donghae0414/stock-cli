@@ -127,7 +127,7 @@ Default `stock accounts list` items contain only normalized snake_case fields:
 | `purchase_amount` | `pur_amt` | Parsed numeric purchase amount. |
 | `holding_quantity` | `rmnd_qty` | Parsed numeric holding quantity. |
 | `orderable_quantity` | `clrn_alow_qty` | Parsed numeric orderable quantity. |
-| `is_credit` | `crd_tp` | `false` when `crd_tp == "00"`, otherwise `true`. |
+| `funding_type` | `crd_tp` | `cash` when `crd_tp == "00"`, otherwise `credit`. |
 
 Filtering rules:
 
@@ -148,10 +148,16 @@ Example shape:
     "purchase_amount": 3000,
     "holding_quantity": 3,
     "orderable_quantity": 2,
-    "is_credit": false
+    "funding_type": "cash"
   }
 ]
 ```
+
+Breaking change: account JSON no longer emits `is_credit`. Use
+`funding_type == "credit"` instead. Valid values are exactly `cash` and
+`credit`. Future order commands should distinguish this cash/credit axis with
+`stock orders create cash` and `stock orders create credit` subcommands;
+`order_type` is reserved for MARKET/LIMIT order style.
 
 ### Credit detail output
 
@@ -183,7 +189,7 @@ Example shape:
     "purchase_amount": 10000,
     "holding_quantity": 5,
     "orderable_quantity": 5,
-    "is_credit": true,
+    "funding_type": "credit",
     "loan_date": "20260601"
   }
 ]
@@ -224,7 +230,7 @@ expected = {
     "purchase_amount",
     "holding_quantity",
     "orderable_quantity",
-    "is_credit",
+    "funding_type",
 }
 
 data = json.load(open(os.environ["out"]))
@@ -266,7 +272,7 @@ default_expected = {
     "purchase_amount",
     "holding_quantity",
     "orderable_quantity",
-    "is_credit",
+    "funding_type",
 }
 detail_expected = default_expected | {"loan_date"}
 
@@ -274,7 +280,7 @@ default_data = json.load(open(os.environ["default_out"]))
 detail_data = json.load(open(os.environ["detail_out"]))
 credit_detail_rows = [
     row for row in detail_data
-    if row["is_credit"] is True and row["loan_date"] != ""
+    if row["funding_type"] == "credit" and row["loan_date"] != ""
 ]
 
 assert isinstance(default_data, list)

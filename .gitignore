@@ -1,4 +1,5 @@
 .env
+.gjc/
 .omx/
 .DS_Store
 bin/

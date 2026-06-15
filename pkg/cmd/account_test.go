@@ -40,14 +40,14 @@ func TestNormalizeAccountHoldingsFromFixture(t *testing.T) {
 	assert.Equal(t, int64(3000), first.PurchaseAmount)
 	assert.Equal(t, int64(3), first.HoldingQuantity)
 	assert.Equal(t, int64(2), first.OrderableQuantity)
-	assert.False(t, first.IsCredit)
+	assert.Equal(t, FundingTypeCash, first.FundingType)
 
 	var foundCredit bool
 	var foundFreeLot bool
 	for _, holding := range holdings {
 		if holding.StockCode == "000003" {
 			foundCredit = true
-			assert.True(t, holding.IsCredit)
+			assert.Equal(t, FundingTypeCredit, holding.FundingType)
 		}
 		if holding.StockCode == "000004" {
 			foundFreeLot = true
@@ -56,6 +56,24 @@ func TestNormalizeAccountHoldingsFromFixture(t *testing.T) {
 	}
 	assert.True(t, foundCredit, "expected unstarred credit aggregate row in fixture")
 	assert.True(t, foundFreeLot, "expected zero purchase price row in fixture")
+}
+
+func TestFundingTypeFromKiwoomCreditType(t *testing.T) {
+	tests := []struct {
+		name       string
+		creditType string
+		want       FundingType
+	}{
+		{name: "cash", creditType: "00", want: FundingTypeCash},
+		{name: "credit buy", creditType: "03", want: FundingTypeCredit},
+		{name: "credit aggregate", creditType: "99", want: FundingTypeCredit},
+		{name: "empty unknown", creditType: "", want: FundingTypeCredit},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, fundingTypeFromKiwoomCreditType(tt.creditType))
+		})
+	}
 }
 
 func TestAccountProfitRateRowUnmarshalsLoanDate(t *testing.T) {
@@ -135,18 +153,18 @@ func TestNormalizeCreditDetailAccountHoldingsFromFixture(t *testing.T) {
 		assert.NotZero(t, holding.HoldingQuantity)
 		if holding.StockCode == "000001" {
 			foundCash = true
-			assert.False(t, holding.IsCredit)
+			assert.Equal(t, FundingTypeCash, holding.FundingType)
 			assert.Equal(t, "", holding.LoanDate)
 		}
 		if holding.StockCode == "000003" {
 			foundCreditDetail = true
-			assert.True(t, holding.IsCredit)
+			assert.Equal(t, FundingTypeCredit, holding.FundingType)
 			assert.Equal(t, "Synthetic Credit Detail", holding.StockName)
 			assert.Equal(t, "20260601", holding.LoanDate)
 		}
 		if holding.StockCode == "000004" {
 			foundFreeLot = true
-			assert.False(t, holding.IsCredit)
+			assert.Equal(t, FundingTypeCash, holding.FundingType)
 			assert.Equal(t, "", holding.LoanDate)
 			assert.Nil(t, holding.ProfitRate)
 		}
@@ -207,13 +225,26 @@ func TestNormalizeCreditDetailAccountHoldingsJSONSchema(t *testing.T) {
 		"purchase_amount":    {},
 		"holding_quantity":   {},
 		"orderable_quantity": {},
-		"is_credit":          {},
+		"funding_type":       {},
 		"loan_date":          {},
 	}
+	var foundCash bool
+	var foundCredit bool
 	for _, row := range decoded {
 		assert.Equal(t, expected, keySet(row))
 		assert.IsType(t, "", row["loan_date"])
+		assert.IsType(t, "", row["funding_type"])
+		switch row["funding_type"] {
+		case string(FundingTypeCash):
+			foundCash = true
+		case string(FundingTypeCredit):
+			foundCredit = true
+		default:
+			t.Fatalf("unexpected funding_type: %v", row["funding_type"])
+		}
 	}
+	assert.True(t, foundCash)
+	assert.True(t, foundCredit)
 }
 
 func TestNormalizeAccountHoldingsJSONSchema(t *testing.T) {
@@ -234,11 +265,24 @@ func TestNormalizeAccountHoldingsJSONSchema(t *testing.T) {
 		"purchase_amount":    {},
 		"holding_quantity":   {},
 		"orderable_quantity": {},
-		"is_credit":          {},
+		"funding_type":       {},
 	}
+	var foundCash bool
+	var foundCredit bool
 	for _, row := range decoded {
 		assert.Equal(t, expected, keySet(row))
+		assert.IsType(t, "", row["funding_type"])
+		switch row["funding_type"] {
+		case string(FundingTypeCash):
+			foundCash = true
+		case string(FundingTypeCredit):
+			foundCredit = true
+		default:
+			t.Fatalf("unexpected funding_type: %v", row["funding_type"])
+		}
 	}
+	assert.True(t, foundCash)
+	assert.True(t, foundCredit)
 }
 
 func TestRootCommandContainsAccounts(t *testing.T) {
