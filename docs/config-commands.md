@@ -70,6 +70,14 @@ Create `~/.stock/` with `0700` permissions and write `~/.stock/config` with
 `0600` permissions. `stock config set` is intentionally TTY-only, matching
 `upbit config set`. It prompts for App Key and Secret Key only.
 
+After `stock config set` successfully saves credentials, it removes the default
+issued-token cache at `~/.stock/token.json`. A missing token cache is a harmless
+no-op. The next token-using command, such as `stock accounts list`, will issue a
+new token using the active credential source: the newly saved config credentials
+unless `KIWOOM_APPKEY`/`KIWOOM_SECRETKEY` environment variables override them.
+This invalidation is scoped to successful `stock config set`; changing those
+environment variables does not automatically invalidate the cache.
+
 ## Confirmed Kiwoom Token Issue Spec
 
 Confirmed by direct call on 2026-06-10 KST:
@@ -109,4 +117,5 @@ long-lived user credentials.
 Token caching is implemented by API commands that need Kiwoom access tokens,
 starting with `stock accounts list`. The cache uses `~/.stock/token.json`,
 stays separate from `~/.stock/config`, and must not print or commit issued token
-values.
+values. Successful `stock config set` removes this cache so the next token-using
+command issues a fresh token using the active credential source.

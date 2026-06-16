@@ -12,9 +12,16 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"stock-cli/pkg/config"
+	"stock-cli/pkg/kiwoom"
 )
 
-var isTerminalFn = func(fd uintptr) bool { return term.IsTerminal(fd) }
+var (
+	isTerminalFn            = func(fd uintptr) bool { return term.IsTerminal(fd) }
+	runConfigSetTUIFn       = runConfigSetTUI
+	configSaveFn            = config.Save
+	defaultTokenCachePathFn = kiwoom.DefaultTokenCachePath
+	removeFileFn            = os.Remove
+)
 
 var configCmd = cli.Command{
 	Name:  "config",
@@ -69,7 +76,7 @@ func runConfigSet() error {
 		}
 	}
 
-	m, err := runConfigSetTUI()
+	m, err := runConfigSetTUIFn()
 	if err != nil {
 		return err
 	}
@@ -82,8 +89,11 @@ func runConfigSet() error {
 		AppKey:    strings.TrimSpace(m.inputs[0].Value()),
 		SecretKey: strings.TrimSpace(m.inputs[1].Value()),
 	}
-	if err := config.Save(creds); err != nil {
+	if err := configSaveFn(creds); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+	if err := invalidateDefaultTokenCache(); err != nil {
+		return fmt.Errorf("credentials saved, but failed to remove token cache: %w", err)
 	}
 
 	expandedPath := path
@@ -91,6 +101,20 @@ func runConfigSet() error {
 		expandedPath = strings.Replace(path, home, "~", 1)
 	}
 	fmt.Printf("Credentials saved to %s\n", expandedPath)
+	return nil
+}
+
+func invalidateDefaultTokenCache() error {
+	path, err := defaultTokenCachePathFn()
+	if err != nil {
+		return err
+	}
+	if err := removeFileFn(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("%s: %w", path, err)
+	}
 	return nil
 }
 

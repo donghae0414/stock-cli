@@ -59,6 +59,8 @@ Token cache rules:
 - Treat missing, malformed, unreadable, expired, or near-expiry token cache as a cache miss.
 - Refresh when the cached token expires within 1 minute.
 - Replace the cache only after a successful token issue response.
+- Remove `~/.stock/token.json` after successful `stock config set` so the next account command issues a fresh token using the active credential source: the newly saved config credentials unless `KIWOOM_APPKEY`/`KIWOOM_SECRETKEY` override them.
+- Scope that removal to successful `stock config set`; changing `KIWOOM_APPKEY` or `KIWOOM_SECRETKEY` environment variables does not automatically remove the token cache.
 - Never print or commit issued token values.
 
 ## Kiwoom API Mapping

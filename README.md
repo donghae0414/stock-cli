@@ -200,5 +200,13 @@ Content-Type: application/json;charset=UTF-8
 발급받고, 발급 토큰을 `~/.stock/token.json`에 저장합니다. `~/.stock/config`에는
 장기 보관용 `appkey`와 `secretkey`만 저장하고 발급 토큰은 저장하지 않습니다.
 
+`stock config set`이 새 credential 저장에 성공하면 기존 `~/.stock/token.json`을
+삭제합니다. 따라서 다음 token-using command는 활성 credential source로 토큰을
+다시 발급받습니다. 환경 변수가 없으면 방금 저장한 config credential을 사용하고,
+`KIWOOM_APPKEY`/`KIWOOM_SECRETKEY`가 있으면 기존 resolution order대로 환경
+변수가 우선합니다. 이미 token cache가 없으면 정상 no-op로 처리됩니다. 이 동작은
+성공한 `stock config set`에만 적용되며, 환경 변수 변경은 token cache를 자동으로
+삭제하지 않습니다.
+
 토큰 캐시 파일은 `0600`, 상위 `~/.stock` 디렉토리는 `0700` 권한으로 보정합니다.
 토큰 값은 CLI 출력, 로그, 문서, git diff에 노출하지 않아야 합니다.
