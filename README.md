@@ -1,7 +1,8 @@
 # stock-cli
 
 Kiwoom REST API를 사용하기 위한 Go 기반 주식 CLI입니다. 현재 구현된 범위는
-Kiwoom 기본 설정 명령과 계좌 보유 종목 조회 명령입니다.
+Kiwoom 기본 설정, 계좌 보유 종목 조회, 주문 리스트 조회, 현금/신용 주문
+생성 및 취소 명령입니다.
 
 ## 준비
 
@@ -156,7 +157,7 @@ set +a
 ]
 ```
 
-`is_credit` 필드는 제거되었고 `funding_type`을 사용합니다. `funding_type` 값은 `cash` 또는 `credit`이며, 기존 `is_credit == true` 소비자는 `funding_type == "credit"`로 마이그레이션해야 합니다. 향후 주문 command의 현금/신용 입력은 `stock orders create cash` / `stock orders create credit` subcommand로 구분하고, `order_type`은 MARKET/LIMIT 주문 방식에만 사용합니다.
+`is_credit` 필드는 제거되었고 `funding_type`을 사용합니다. `funding_type` 값은 `cash` 또는 `credit`이며, 기존 `is_credit == true` 소비자는 `funding_type == "credit"`로 마이그레이션해야 합니다. 주문 command의 현금/신용 입력은 `stock orders create cash` / `stock orders create credit` subcommand로 구분하고, `order_type`은 MARKET/LIMIT 주문 방식에만 사용합니다.
 
 `--credit-detail` 출력에는 기존 `funding_type` 필드에 `loan_date`만 추가됩니다. 현금 행의
 `loan_date`는 빈 문자열입니다.
@@ -207,6 +208,19 @@ fixture를 추가해 재검증해야 합니다. JSON field 이름은 유지하�
 cash/credit 분류 의미는 best-effort 값으로 취급합니다.
 
 자세한 API mapping과 안전한 smoke 검증은 `docs/order-commands.md`를 참고합니다.
+
+## 주문 생성/취소
+
+`stock orders create cash`, `stock orders create credit`,
+`stock orders cancel cash`, `stock orders cancel credit`는 Kiwoom 주문 API를
+즉시 호출합니다. CLI 자체 confirmation, dry-run, quote 확인, 잔고/담보/보유수량
+확인은 하지 않고, 이런 안전 정책은 CLI를 호출하는 Agent workflow가 담당합니다.
+
+신용 매도에서는 `--loan-selection individual|aggregate`를 사용합니다.
+`individual`은 `--loan-date YYYYMMDD`가 필수이고, `aggregate`와 함께
+`--loan-date`를 넘기면 validation error입니다.
+
+자세한 command contract와 API mapping은 `docs/order-commands.md`를 참고합니다.
 
 ## Kiwoom 토큰 발급 스펙
 

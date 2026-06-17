@@ -134,6 +134,110 @@ func TestCashCancelOrderSendsRequest(t *testing.T) {
 	assert.Equal(t, "000000000001", response.CancelQuantity)
 }
 
+func TestCreditBuyOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, creditOrderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, creditBuyOrderAPIID, r.Header.Get("api-id"))
+		assert.Equal(t, "N", r.Header.Get("cont-yn"))
+		assert.Equal(t, "", r.Header.Get("next-key"))
+
+		var req CreditOrderRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "SOR", req.DomesticExchangeType)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "1", req.OrderQuantity)
+		assert.Equal(t, "74100", req.OrderUnitPrice)
+		assert.Equal(t, "0", req.TradeType)
+		assert.Equal(t, "", req.ConditionPrice)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0001615","dmst_stex_tp":"SOR","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CreditBuyOrder(context.Background(), CreditOrderRequest{
+		DomesticExchangeType: "SOR",
+		StockCode:            "005930",
+		OrderQuantity:        "1",
+		OrderUnitPrice:       "74100",
+		TradeType:            "0",
+		ConditionPrice:       "",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0001615", response.OrderID)
+	assert.Equal(t, "SOR", response.DomesticExchangeType)
+}
+
+func TestCreditSellOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, creditOrderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, creditSellOrderAPIID, r.Header.Get("api-id"))
+
+		var req CreditSellOrderRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "KRX", req.DomesticExchangeType)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "3", req.OrderQuantity)
+		assert.Equal(t, "6450", req.OrderUnitPrice)
+		assert.Equal(t, "0", req.TradeType)
+		assert.Equal(t, "99", req.CreditDealType)
+		assert.Equal(t, "", req.CreditLoanDate)
+		assert.Equal(t, "", req.ConditionPrice)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0001614","dmst_stex_tp":"KRX","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CreditSellOrder(context.Background(), CreditSellOrderRequest{
+		DomesticExchangeType: "KRX",
+		StockCode:            "005930",
+		OrderQuantity:        "3",
+		OrderUnitPrice:       "6450",
+		TradeType:            "0",
+		CreditDealType:       "99",
+		CreditLoanDate:       "",
+		ConditionPrice:       "",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0001614", response.OrderID)
+	assert.Equal(t, "KRX", response.DomesticExchangeType)
+}
+
+func TestCreditCancelOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, creditOrderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, creditCancelAPIID, r.Header.Get("api-id"))
+		assert.Equal(t, "N", r.Header.Get("cont-yn"))
+		assert.Equal(t, "", r.Header.Get("next-key"))
+
+		var req CreditCancelRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "NXT", req.DomesticExchangeType)
+		assert.Equal(t, "0001615", req.OriginalOrderID)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "0", req.CancelQuantity)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0001695","base_orig_ord_no":"0001615","cncl_qty":"000000000001","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CreditCancelOrder(context.Background(), CreditCancelRequest{
+		DomesticExchangeType: "NXT",
+		OriginalOrderID:      "0001615",
+		StockCode:            "005930",
+		CancelQuantity:       "0",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0001695", response.OrderID)
+	assert.Equal(t, "0001615", response.BaseOriginalOrderID)
+	assert.Equal(t, "000000000001", response.CancelQuantity)
+}
+
 func TestCashOrderBusinessErrorIncludesReturnMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"ord_no":"","return_code":9,"return_msg":"cash order rejected"}`))
@@ -158,6 +262,32 @@ func TestCashCancelBusinessErrorIncludesReturnMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "return_code=8")
 	assert.Contains(t, err.Error(), `return_msg="cash cancel rejected"`)
+}
+
+func TestCreditOrderBusinessErrorIncludesReturnMessage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ord_no":"","return_code":9,"return_msg":"credit order rejected"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	_, err := c.CreditBuyOrder(context.Background(), CreditOrderRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "return_code=9")
+	assert.Contains(t, err.Error(), `return_msg="credit order rejected"`)
+}
+
+func TestCreditCancelBusinessErrorIncludesReturnMessage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ord_no":"","return_code":8,"return_msg":"credit cancel rejected"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	_, err := c.CreditCancelOrder(context.Background(), CreditCancelRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "return_code=8")
+	assert.Contains(t, err.Error(), `return_msg="credit cancel rejected"`)
 }
 
 func TestOrderListSendsRequestAndFollowsContinuation(t *testing.T) {

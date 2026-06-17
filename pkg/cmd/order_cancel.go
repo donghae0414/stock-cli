@@ -19,6 +19,7 @@ var ordersCancelCmd = cli.Command{
 	Suggest: true,
 	Commands: []*cli.Command{
 		&ordersCancelCashCmd,
+		&ordersCancelCreditCmd,
 	},
 }
 
@@ -49,8 +50,35 @@ var ordersCancelCashCmd = cli.Command{
 	HideHelpCommand: true,
 }
 
+var ordersCancelCreditCmd = cli.Command{
+	Name:    "credit",
+	Usage:   "Cancel a credit stock order",
+	Suggest: true,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "stock-code",
+			Usage: "Six-digit stock code",
+		},
+		&cli.StringFlag{
+			Name:  "original-order-id",
+			Usage: "Original order identifier",
+		},
+		&cli.StringFlag{
+			Name:  "quantity",
+			Usage: "Positive cancel quantity; omit to cancel remaining quantity",
+		},
+		&cli.StringFlag{
+			Name:  "trading-venue",
+			Usage: "Trading venue: SOR, KRX, or NXT",
+			Value: "SOR",
+		},
+	},
+	Action:          handleOrdersCancelCredit,
+	HideHelpCommand: true,
+}
+
 func handleOrdersCancelCash(ctx context.Context, cmd *cli.Command) error {
-	return runOrdersCancelCash(ctx, cashCancelOptions{
+	return runOrdersCancelCash(ctx, orderCancelOptions{
 		StockCode:       cmd.String("stock-code"),
 		OriginalOrderID: cmd.String("original-order-id"),
 		Quantity:        cmd.String("quantity"),
@@ -58,14 +86,23 @@ func handleOrdersCancelCash(ctx context.Context, cmd *cli.Command) error {
 	}, cmd.Args().Slice())
 }
 
-type cashCancelOptions struct {
+func handleOrdersCancelCredit(ctx context.Context, cmd *cli.Command) error {
+	return runOrdersCancelCredit(ctx, orderCancelOptions{
+		StockCode:       cmd.String("stock-code"),
+		OriginalOrderID: cmd.String("original-order-id"),
+		Quantity:        cmd.String("quantity"),
+		TradingVenue:    cmd.String("trading-venue"),
+	}, cmd.Args().Slice())
+}
+
+type orderCancelOptions struct {
 	StockCode       string
 	OriginalOrderID string
 	Quantity        string
 	TradingVenue    string
 }
 
-func runOrdersCancelCash(ctx context.Context, opts cashCancelOptions, unusedArgs []string) error {
+func runOrdersCancelCash(ctx context.Context, opts orderCancelOptions, unusedArgs []string) error {
 	request, err := buildCashCancelRequest(opts, unusedArgs)
 	if err != nil {
 		return err
@@ -94,7 +131,36 @@ func runOrdersCancelCash(ctx context.Context, opts cashCancelOptions, unusedArgs
 	return enc.Encode(output)
 }
 
-func buildCashCancelRequest(opts cashCancelOptions, unusedArgs []string) (kiwoom.CashCancelRequest, error) {
+func runOrdersCancelCredit(ctx context.Context, opts orderCancelOptions, unusedArgs []string) error {
+	request, err := buildCreditCancelRequest(opts, unusedArgs)
+	if err != nil {
+		return err
+	}
+
+	creds, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if creds.AppKey == "" || creds.SecretKey == "" {
+		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+	}
+
+	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)
+	response, err := client.CreditCancelOrder(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	output, err := normalizeCreditCancelResponse(response)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(output)
+}
+
+func buildCashCancelRequest(opts orderCancelOptions, unusedArgs []string) (kiwoom.CashCancelRequest, error) {
 	if len(unusedArgs) > 0 {
 		return kiwoom.CashCancelRequest{}, fmt.Errorf("unexpected extra arguments: %v", unusedArgs)
 	}
@@ -124,6 +190,36 @@ func buildCashCancelRequest(opts cashCancelOptions, unusedArgs []string) (kiwoom
 	}, nil
 }
 
+func buildCreditCancelRequest(opts orderCancelOptions, unusedArgs []string) (kiwoom.CreditCancelRequest, error) {
+	if len(unusedArgs) > 0 {
+		return kiwoom.CreditCancelRequest{}, fmt.Errorf("unexpected extra arguments: %v", unusedArgs)
+	}
+
+	stockCode, err := parseRequiredStockCode(opts.StockCode)
+	if err != nil {
+		return kiwoom.CreditCancelRequest{}, err
+	}
+	originalOrderID, err := parseOriginalOrderID(opts.OriginalOrderID)
+	if err != nil {
+		return kiwoom.CreditCancelRequest{}, err
+	}
+	cancelQuantity, err := parseCancelQuantity(opts.Quantity)
+	if err != nil {
+		return kiwoom.CreditCancelRequest{}, err
+	}
+	tradingVenue, err := parseTradingVenue(opts.TradingVenue)
+	if err != nil {
+		return kiwoom.CreditCancelRequest{}, err
+	}
+
+	return kiwoom.CreditCancelRequest{
+		DomesticExchangeType: tradingVenue,
+		OriginalOrderID:      originalOrderID,
+		StockCode:            stockCode,
+		CancelQuantity:       cancelQuantity,
+	}, nil
+}
+
 func parseOriginalOrderID(originalOrderID string) (string, error) {
 	if !isDigitsOnly(originalOrderID) {
 		return "", fmt.Errorf("invalid original order id %q: expected digits", originalOrderID)
@@ -139,18 +235,30 @@ func parseCancelQuantity(quantity string) (string, error) {
 	return parsePositiveIntString("quantity", trimmed)
 }
 
-type cashCancelOutput struct {
+type orderCancelOutput struct {
 	OrderID             string `json:"order_id"`
 	BaseOriginalOrderID string `json:"base_original_order_id"`
 	CancelledQuantity   int64  `json:"cancelled_quantity"`
 }
 
-func normalizeCashCancelResponse(response kiwoom.CashCancelResponse) (cashCancelOutput, error) {
+func normalizeCashCancelResponse(response kiwoom.CashCancelResponse) (orderCancelOutput, error) {
 	cancelledQuantity, err := parseKiwoomInt(response.CancelQuantity, true)
 	if err != nil {
-		return cashCancelOutput{}, fmt.Errorf("invalid cncl_qty for order %s: %w", response.OrderID, err)
+		return orderCancelOutput{}, fmt.Errorf("invalid cncl_qty for order %s: %w", response.OrderID, err)
 	}
-	return cashCancelOutput{
+	return orderCancelOutput{
+		OrderID:             response.OrderID,
+		BaseOriginalOrderID: response.BaseOriginalOrderID,
+		CancelledQuantity:   cancelledQuantity,
+	}, nil
+}
+
+func normalizeCreditCancelResponse(response kiwoom.CreditCancelResponse) (orderCancelOutput, error) {
+	cancelledQuantity, err := parseKiwoomInt(response.CancelQuantity, true)
+	if err != nil {
+		return orderCancelOutput{}, fmt.Errorf("invalid cncl_qty for order %s: %w", response.OrderID, err)
+	}
+	return orderCancelOutput{
 		OrderID:             response.OrderID,
 		BaseOriginalOrderID: response.BaseOriginalOrderID,
 		CancelledQuantity:   cancelledQuantity,

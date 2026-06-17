@@ -157,9 +157,10 @@ Example shape:
 
 Breaking change: account JSON no longer emits `is_credit`. Use
 `funding_type == "credit"` instead. Valid values are exactly `cash` and
-`credit`. Future order commands should distinguish this cash/credit axis with
+`credit`. Order commands distinguish this cash/credit axis with
 `stock orders create cash` and `stock orders create credit` subcommands;
-`order_type` is reserved for MARKET/LIMIT order style.
+`order_type` is reserved for MARKET/LIMIT order style. See
+`docs/order-commands.md` for the live order command contract.
 
 ### Credit detail output
 

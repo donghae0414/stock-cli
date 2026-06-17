@@ -4,10 +4,11 @@
 consumption. It calls Kiwoom `ka10075` and follows continuation pages before
 printing output, up to the 100-page safety limit.
 
-`stock orders create cash` and `stock orders cancel cash` submit live Kiwoom
-cash order requests immediately. Confirmation, dry-run policy, quote checks,
-cash checks, holdings checks, and price-limit checks belong in the Skill or
-workflow that calls this CLI, not in these command primitives.
+`stock orders create cash`, `stock orders create credit`, `stock orders cancel
+cash`, and `stock orders cancel credit` submit live Kiwoom order requests
+immediately. Confirmation, dry-run policy, quote checks, cash checks,
+collateral checks, loan checks, holdings checks, and price-limit checks belong
+in the Skill or workflow that calls this CLI, not in these command primitives.
 
 ## Command
 
@@ -18,6 +19,10 @@ workflow that calls this CLI, not in these command primitives.
 ./bin/stock orders create cash --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
 ./bin/stock orders create cash --side sell --stock-code 005930 --order-type market --quantity 1
 ./bin/stock orders cancel cash --stock-code 005930 --original-order-id 0000140
+./bin/stock orders create credit --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
+./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection aggregate
+./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection individual --loan-date 20260601
+./bin/stock orders cancel credit --stock-code 005930 --original-order-id 0001615
 ```
 
 Options:
@@ -135,6 +140,138 @@ Success output is normalized:
 }
 ```
 
+## Credit Create Command
+
+`stock orders create credit` calls Kiwoom credit buy or credit sell order APIs.
+
+Options:
+
+| Option | Values | Purpose |
+| --- | --- | --- |
+| `--side` | `buy`, `sell` | `buy` calls `kt10006`; `sell` calls `kt10007`. |
+| `--stock-code` | six digits | Required stock code. |
+| `--order-type` | `limit`, `market` | `limit` maps to Kiwoom `trde_tp: "0"`; `market` maps to `trde_tp: "3"`. |
+| `--quantity` | positive integer | Whole-share order quantity. |
+| `--price` | positive integer | Per-share limit price only. Required for `limit`; rejected for `market`. It is never a total order amount. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+| `--loan-selection` | `individual`, `aggregate` | Required for credit sell only. `individual` maps to `crd_deal_tp: "33"`; `aggregate` maps to `crd_deal_tp: "99"`. |
+| `--loan-date` | `YYYYMMDD` | Required with `--loan-selection individual`; rejected with `aggregate` and rejected for credit buy. |
+
+Credit buy limit example:
+
+```sh
+./bin/stock orders create credit --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
+```
+
+Credit sell aggregate example:
+
+```sh
+./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection aggregate
+```
+
+Credit sell individual loan-date example:
+
+```sh
+./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection individual --loan-date 20260601
+```
+
+Passing `--price` with `--order-type market` is a CLI validation error before
+credentials are loaded or any Kiwoom request is made. Passing `--loan-date`
+with `--loan-selection aggregate` is also a validation error before credentials
+or network.
+
+Request body for a credit buy limit order:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "stk_cd": "005930",
+  "ord_qty": "1",
+  "ord_uv": "74100",
+  "trde_tp": "0",
+  "cond_uv": ""
+}
+```
+
+Request body for a credit sell aggregate limit order:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "stk_cd": "005930",
+  "ord_qty": "3",
+  "ord_uv": "6450",
+  "trde_tp": "0",
+  "crd_deal_tp": "99",
+  "crd_loan_dt": "",
+  "cond_uv": ""
+}
+```
+
+Request body for a credit sell individual market order:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "stk_cd": "005930",
+  "ord_qty": "3",
+  "ord_uv": "",
+  "trde_tp": "3",
+  "crd_deal_tp": "33",
+  "crd_loan_dt": "20260601",
+  "cond_uv": ""
+}
+```
+
+Success output is normalized:
+
+```json
+{
+  "order_id": "0001615",
+  "trading_venue": "SOR"
+}
+```
+
+## Credit Cancel Command
+
+`stock orders cancel credit` calls Kiwoom credit cancel API `kt10009`.
+
+Options:
+
+| Option | Values | Purpose |
+| --- | --- | --- |
+| `--stock-code` | six digits | Required stock code. |
+| `--original-order-id` | digits | Required original order identifier. Preserved as a string, including leading zeros. |
+| `--quantity` | positive integer | Optional cancel quantity. Omit to cancel all remaining quantity via `cncl_qty: "0"`. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+
+Cancel remaining quantity:
+
+```sh
+./bin/stock orders cancel credit --stock-code 005930 --original-order-id 0001615
+```
+
+Request body:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "orig_ord_no": "0001615",
+  "stk_cd": "005930",
+  "cncl_qty": "0"
+}
+```
+
+Success output is normalized:
+
+```json
+{
+  "order_id": "0001695",
+  "base_original_order_id": "0001615",
+  "cancelled_quantity": 1
+}
+```
+
 ## Error Output
 
 Success JSON stays minimal and does not include Kiwoom `return_code` or
@@ -146,6 +283,10 @@ Example error shape:
 
 ```text
 Kiwoom cash buy order failed return_code=9 return_msg="cash order rejected"
+```
+
+```text
+Kiwoom credit sell order failed return_code=9 return_msg="credit order rejected"
 ```
 
 HTTP error summaries also include parsed `return_msg` when Kiwoom provides it.
@@ -165,6 +306,30 @@ authorization: Bearer <token>
 cont-yn: N
 next-key:
 api-id: ka10075
+```
+
+`stock orders create cash` and `stock orders cancel cash` call the cash order
+endpoint:
+
+```http
+POST https://api.kiwoom.com/api/dostk/ordr
+Content-Type: application/json;charset=UTF-8
+authorization: Bearer <token>
+cont-yn: N
+next-key:
+api-id: kt10000 | kt10001 | kt10003
+```
+
+`stock orders create credit` and `stock orders cancel credit` call the credit
+order endpoint:
+
+```http
+POST https://api.kiwoom.com/api/dostk/crdordr
+Content-Type: application/json;charset=UTF-8
+authorization: Bearer <token>
+cont-yn: N
+next-key:
+api-id: kt10006 | kt10007 | kt10009
 ```
 
 Request body for all stocks and all sides:
