@@ -23,6 +23,7 @@ func init() {
 		Commands: []*cli.Command{
 			&accountsCmd,
 			&configCmd,
+			&ordersCmd,
 		},
 	}
 }

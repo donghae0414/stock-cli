@@ -112,20 +112,107 @@ func (c *Client) EnsureToken(ctx context.Context) (string, error) {
 	return token.Token, nil
 }
 
+type continuationRequest struct {
+	ContYN  string
+	NextKey string
+}
+
+func firstContinuationRequest() continuationRequest {
+	return continuationRequest{ContYN: "N"}
+}
+
+func (r continuationRequest) headers(apiID string) map[string]string {
+	return map[string]string{
+		"cont-yn":  r.ContYN,
+		"next-key": r.NextKey,
+		"api-id":   apiID,
+	}
+}
+
+type continuationResponse struct {
+	ContYN  string
+	NextKey string
+}
+
+func (r continuationResponse) nextRequest(operation string, pages int, maxPages int, seenNextKeys map[string]struct{}) (continuationRequest, bool, error) {
+	if r.ContYN != "Y" {
+		return continuationRequest{}, false, nil
+	}
+	if r.NextKey == "" {
+		return continuationRequest{}, false, fmt.Errorf("%s requested continuation without next-key", operation)
+	}
+	if pages >= maxPages {
+		return continuationRequest{}, false, fmt.Errorf("%s exceeded continuation page limit (%d)", operation, maxPages)
+	}
+	if _, ok := seenNextKeys[r.NextKey]; ok {
+		return continuationRequest{}, false, fmt.Errorf("%s returned repeated continuation next-key", operation)
+	}
+	seenNextKeys[r.NextKey] = struct{}{}
+	return continuationRequest{ContYN: r.ContYN, NextKey: r.NextKey}, true, nil
+}
+
+func postJSONContinuationPages[T any](
+	ctx context.Context,
+	client *Client,
+	endpoint string,
+	body any,
+	apiID string,
+	operation string,
+	maxPages int,
+	handlePage func(*T) error,
+) error {
+	seenNextKeys := map[string]struct{}{}
+	pages := 0
+	continuation := firstContinuationRequest()
+
+	for {
+		var page T
+		continuationResponse, err := client.postJSONWithContinuation(
+			ctx,
+			endpoint,
+			body,
+			continuation.headers(apiID),
+			&page,
+		)
+		if err != nil {
+			return err
+		}
+		if err := handlePage(&page); err != nil {
+			return err
+		}
+		pages++
+
+		nextContinuation, hasNext, err := continuationResponse.nextRequest(operation, pages, maxPages, seenNextKeys)
+		if err != nil {
+			return err
+		}
+		if !hasNext {
+			return nil
+		}
+		continuation = nextContinuation
+	}
+}
+
 func (c *Client) PostJSON(ctx context.Context, endpoint string, body any, headers map[string]string, out any) error {
+	// PostJSON is for one-shot requests; paginated endpoints use postJSONContinuationPages.
+	_, err := c.postJSONWithContinuation(ctx, endpoint, body, headers, out)
+	return err
+}
+
+func (c *Client) postJSONWithContinuation(ctx context.Context, endpoint string, body any, headers map[string]string, out any) (continuationResponse, error) {
 	token, err := c.EnsureToken(ctx)
 	if err != nil {
-		return err
+		return continuationResponse{}, err
 	}
 
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("failed to encode Kiwoom request body: %w", err)
+		return continuationResponse{}, fmt.Errorf("failed to encode Kiwoom request body: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.host+endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("failed to create Kiwoom request: %w", err)
+		return continuationResponse{}, fmt.Errorf("failed to create Kiwoom request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json;charset=UTF-8")
 	req.Header.Set("authorization", "Bearer "+token)
@@ -135,21 +222,24 @@ func (c *Client) PostJSON(ctx context.Context, endpoint string, body any, header
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Kiwoom request failed: %w", err)
+		return continuationResponse{}, fmt.Errorf("Kiwoom request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read Kiwoom response: %w", err)
+		return continuationResponse{}, fmt.Errorf("failed to read Kiwoom response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("Kiwoom request failed with HTTP %d: %s", resp.StatusCode, safeResponseSummary(data))
+		return continuationResponse{}, fmt.Errorf("Kiwoom request failed with HTTP %d: %s", resp.StatusCode, safeResponseSummary(data))
 	}
 	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("failed to decode Kiwoom response: %w", err)
+		return continuationResponse{}, fmt.Errorf("failed to decode Kiwoom response: %w", err)
 	}
-	return nil
+	return continuationResponse{
+		ContYN:  resp.Header.Get("cont-yn"),
+		NextKey: resp.Header.Get("next-key"),
+	}, nil
 }
 
 type tokenCache struct {

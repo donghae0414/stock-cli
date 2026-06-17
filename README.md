@@ -161,6 +161,53 @@ set +a
 `--credit-detail` 출력에는 기존 `funding_type` 필드에 `loan_date`만 추가됩니다. 현금 행의
 `loan_date`는 빈 문자열입니다.
 
+## 주문 리스트 조회
+
+`stock orders list`는 Kiwoom `ka10075` 주문 리스트 API를 호출해서 현재
+미체결/주문 rows를 JSON 배열로 출력합니다. 연속조회 응답이 있으면 100 page
+safety limit 안에서 모든 page를 자동으로 조회해서 합친 뒤 출력합니다.
+
+```sh
+./bin/stock orders list
+./bin/stock orders list --side buy --stock-code 005930
+```
+
+출력은 agent가 읽기 쉬운 snake_case 필드만 포함하며, 주문 취소에 재사용될 수
+있는 주문 식별자는 문자열 그대로 보존합니다.
+
+```json
+[
+  {
+    "order_id": "0000069",
+    "original_order_id": "0000000",
+    "stock_code": "005930",
+    "stock_name": "삼성전자",
+    "trading_venue": "SOR",
+    "ordered_quantity": 1,
+    "ordered_price": 0,
+    "unfilled_quantity": 1,
+    "funding_type": "cash",
+    "filled_quantity": 0,
+    "current_price": 74100
+  }
+]
+```
+
+`--side`는 `all`, `buy`, `sell`을 지원하고 기본값은 `all`입니다.
+`--stock-code`는 6자리 종목 코드이며 없으면 전체 종목을 조회합니다.
+`trading_venue`는 Kiwoom 응답 `stex_tp`를 정규화한 값이며, `0`은 `SOR`,
+`1`은 `KRX`, `2`는 `NXT`로 출력합니다. 이 값은 향후 주문 취소/정정에서
+주문된 거래 경로를 판단하는 데 사용될 수 있습니다. 아직 매핑하지 않은 값은
+주문 식별자를 잃지 않도록 `UNKNOWN_<raw>` 형식으로 보존하고, 빈 값은
+`UNKNOWN`으로 출력합니다.
+`funding_type`은 `io_tp_nm`에 `신용`이 포함되면 `credit`, 아니면 `cash`로
+정규화합니다. 현재 계정의 live API 응답에 주문 row가 없어 이 판정은 문서화된
+임시 heuristic이며, 실제 주문 row가 확인되면 관측된 `io_tp_nm` 값으로 회귀
+fixture를 추가해 재검증해야 합니다. JSON field 이름은 유지하되, 그 전까지
+cash/credit 분류 의미는 best-effort 값으로 취급합니다.
+
+자세한 API mapping과 안전한 smoke 검증은 `docs/order-commands.md`를 참고합니다.
+
 ## Kiwoom 토큰 발급 스펙
 
 직접 호출로 확인한 토큰 발급 스펙은 다음과 같습니다.
