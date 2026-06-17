@@ -298,7 +298,7 @@ func (c *Client) issueToken(ctx context.Context) (tokenCache, error) {
 		return tokenCache{}, fmt.Errorf("failed to decode Kiwoom token response: %w", err)
 	}
 	if decoded.ReturnCode != 0 {
-		return tokenCache{}, kiwoomReturnCodeError("token request", decoded.ReturnCode)
+		return tokenCache{}, kiwoomReturnCodeError("token request", decoded.ReturnCode, decoded.ReturnMsg)
 	}
 
 	cache := tokenCache{
@@ -417,7 +417,7 @@ func safeResponseSummary(data []byte) string {
 			parts = append(parts, "return_code="+safeReturnCode(body.ReturnCode))
 		}
 		if len(body.ReturnMsg) > 0 {
-			parts = append(parts, "return_msg=redacted")
+			parts = append(parts, "return_msg="+safeReturnMsg(body.ReturnMsg))
 		}
 		if len(parts) > 0 {
 			return strings.Join(parts, " ")
@@ -426,8 +426,8 @@ func safeResponseSummary(data []byte) string {
 	return "response body redacted"
 }
 
-func kiwoomReturnCodeError(operation string, code int) error {
-	return fmt.Errorf("Kiwoom %s failed return_code=%d return_msg=redacted", operation, code)
+func kiwoomReturnCodeError(operation string, code int, returnMsg string) error {
+	return fmt.Errorf("Kiwoom %s failed return_code=%d return_msg=%q", operation, code, returnMsg)
 }
 
 func safeReturnCode(raw json.RawMessage) string {
@@ -441,6 +441,14 @@ func safeReturnCode(raw json.RawMessage) string {
 		return "invalid"
 	}
 	return number.String()
+}
+
+func safeReturnMsg(raw json.RawMessage) string {
+	var message string
+	if err := json.Unmarshal(raw, &message); err != nil {
+		return "invalid"
+	}
+	return fmt.Sprintf("%q", message)
 }
 
 func ensureTokenCacheDirPermissions(dir string) error {

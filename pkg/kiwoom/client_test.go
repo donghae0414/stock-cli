@@ -192,7 +192,7 @@ func TestTokenHTTPErrorDoesNotExposeSensitiveBodyFields(t *testing.T) {
 	cachePath := filepath.Join(home, ".stock", "token.json")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"token":"secret-token","authorization":"Bearer secret-token","return_code":401,"return_msg":"denied Bearer secret-token"}`))
+		_, _ = w.Write([]byte(`{"token":"secret-token","authorization":"Bearer secret-token","return_code":401,"return_msg":"token rejected by Kiwoom"}`))
 	}))
 	defer server.Close()
 
@@ -206,8 +206,7 @@ func TestTokenHTTPErrorDoesNotExposeSensitiveBodyFields(t *testing.T) {
 	require.Error(t, err)
 	message := err.Error()
 	assert.Contains(t, message, "return_code=401")
-	assert.Contains(t, message, "return_msg=redacted")
-	assert.NotContains(t, message, "denied")
+	assert.Contains(t, message, `return_msg="token rejected by Kiwoom"`)
 	assert.NotContains(t, message, "secret-token")
 	assert.NotContains(t, message, "authorization")
 }
@@ -224,7 +223,7 @@ func TestPostJSONHTTPErrorDoesNotExposeSensitiveBodyFields(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"acnt_prft_rt":[{"stk_nm":"private"}],"token":"secret-token","return_code":500,"return_msg":"failed private secret-token"}`))
+		_, _ = w.Write([]byte(`{"acnt_prft_rt":[{"stk_nm":"private"}],"token":"secret-token","return_code":500,"return_msg":"upstream account failure"}`))
 	}))
 	defer server.Close()
 
@@ -239,7 +238,7 @@ func TestPostJSONHTTPErrorDoesNotExposeSensitiveBodyFields(t *testing.T) {
 	require.Error(t, err)
 	message := err.Error()
 	assert.Contains(t, message, "return_code=500")
-	assert.Contains(t, message, "return_msg=redacted")
+	assert.Contains(t, message, `return_msg="upstream account failure"`)
 	assert.NotContains(t, message, "secret-token")
 	assert.NotContains(t, message, "private")
 }
@@ -256,7 +255,7 @@ func TestPostJSONHTTPErrorDoesNotExposeInvalidReturnCode(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"return_code":"secret-token","return_msg":"private detail"}`))
+		_, _ = w.Write([]byte(`{"return_code":"secret-token","return_msg":"diagnostic detail"}`))
 	}))
 	defer server.Close()
 
@@ -271,16 +270,15 @@ func TestPostJSONHTTPErrorDoesNotExposeInvalidReturnCode(t *testing.T) {
 	require.Error(t, err)
 	message := err.Error()
 	assert.Contains(t, message, "return_code=invalid")
-	assert.Contains(t, message, "return_msg=redacted")
+	assert.Contains(t, message, `return_msg="diagnostic detail"`)
 	assert.NotContains(t, message, "secret-token")
-	assert.NotContains(t, message, "private detail")
 }
 
-func TestTokenBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
+func TestTokenBusinessErrorIncludesReturnMessage(t *testing.T) {
 	home := t.TempDir()
 	cachePath := filepath.Join(home, ".stock", "token.json")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"return_code":7,"return_msg":"denied Bearer secret-token"}`))
+		_, _ = w.Write([]byte(`{"return_code":7,"return_msg":"token rejected by Kiwoom"}`))
 	}))
 	defer server.Close()
 
@@ -294,12 +292,11 @@ func TestTokenBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
 	require.Error(t, err)
 	message := err.Error()
 	assert.Contains(t, message, "return_code=7")
-	assert.Contains(t, message, "return_msg=redacted")
+	assert.Contains(t, message, `return_msg="token rejected by Kiwoom"`)
 	assert.NotContains(t, message, "secret-token")
-	assert.NotContains(t, message, "denied")
 }
 
-func TestAccountBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
+func TestAccountBusinessErrorIncludesReturnMessage(t *testing.T) {
 	home := t.TempDir()
 	cachePath := filepath.Join(home, ".stock", "token.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0700))
@@ -310,7 +307,7 @@ func TestAccountBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
 	})
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"acnt_prft_rt":[],"return_code":9,"return_msg":"account detail private"}`))
+		_, _ = w.Write([]byte(`{"acnt_prft_rt":[],"return_code":9,"return_msg":"account rejected by Kiwoom"}`))
 	}))
 	defer server.Close()
 
@@ -324,9 +321,7 @@ func TestAccountBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
 	require.Error(t, err)
 	message := err.Error()
 	assert.Contains(t, message, "return_code=9")
-	assert.Contains(t, message, "return_msg=redacted")
-	assert.NotContains(t, message, "private")
-	assert.NotContains(t, message, "account detail")
+	assert.Contains(t, message, `return_msg="account rejected by Kiwoom"`)
 }
 
 func TestParseExpiresDTUsesKiwoomTimeLocation(t *testing.T) {

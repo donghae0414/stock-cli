@@ -3,8 +3,13 @@ package kiwoom
 import "context"
 
 const (
-	orderListAPIID    = "ka10075"
-	orderListMaxPages = 100
+	orderListAPIID       = "ka10075"
+	cashBuyOrderAPIID    = "kt10000"
+	cashSellOrderAPIID   = "kt10001"
+	cashCancelAPIID      = "kt10003"
+	orderListMaxPages    = 100
+	orderAccountEndpoint = "/api/dostk/acnt"
+	orderEndpoint        = "/api/dostk/ordr"
 )
 
 type OrderListRequest struct {
@@ -34,13 +39,44 @@ type orderListPageResponse struct {
 	ReturnMsg  string         `json:"return_msg"`
 }
 
+type CashOrderRequest struct {
+	DomesticExchangeType string `json:"dmst_stex_tp"`
+	StockCode            string `json:"stk_cd"`
+	OrderQuantity        string `json:"ord_qty"`
+	OrderUnitPrice       string `json:"ord_uv"`
+	TradeType            string `json:"trde_tp"`
+	ConditionPrice       string `json:"cond_uv"`
+}
+
+type CashOrderResponse struct {
+	OrderID              string `json:"ord_no"`
+	DomesticExchangeType string `json:"dmst_stex_tp"`
+	ReturnCode           int    `json:"return_code"`
+	ReturnMsg            string `json:"return_msg"`
+}
+
+type CashCancelRequest struct {
+	DomesticExchangeType string `json:"dmst_stex_tp"`
+	OriginalOrderID      string `json:"orig_ord_no"`
+	StockCode            string `json:"stk_cd"`
+	CancelQuantity       string `json:"cncl_qty"`
+}
+
+type CashCancelResponse struct {
+	OrderID             string `json:"ord_no"`
+	BaseOriginalOrderID string `json:"base_orig_ord_no"`
+	CancelQuantity      string `json:"cncl_qty"`
+	ReturnCode          int    `json:"return_code"`
+	ReturnMsg           string `json:"return_msg"`
+}
+
 // OrderList returns order rows merged from every continuation page.
 func (c *Client) OrderList(ctx context.Context, req OrderListRequest) ([]OrderListRow, error) {
 	var allRows []OrderListRow
 
-	err := postJSONContinuationPages(ctx, c, "/api/dostk/acnt", req, orderListAPIID, "Kiwoom order list request", orderListMaxPages, func(response *orderListPageResponse) error {
+	err := postJSONContinuationPages(ctx, c, orderAccountEndpoint, req, orderListAPIID, "Kiwoom order list request", orderListMaxPages, func(response *orderListPageResponse) error {
 		if response.ReturnCode != 0 {
-			return kiwoomReturnCodeError("order list request", response.ReturnCode)
+			return kiwoomReturnCodeError("order list request", response.ReturnCode, response.ReturnMsg)
 		}
 		allRows = append(allRows, response.Rows...)
 		return nil
@@ -49,4 +85,44 @@ func (c *Client) OrderList(ctx context.Context, req OrderListRequest) ([]OrderLi
 		return nil, err
 	}
 	return allRows, nil
+}
+
+func (c *Client) CashBuyOrder(ctx context.Context, req CashOrderRequest) (CashOrderResponse, error) {
+	return c.cashOrder(ctx, req, cashBuyOrderAPIID, "cash buy order")
+}
+
+func (c *Client) CashSellOrder(ctx context.Context, req CashOrderRequest) (CashOrderResponse, error) {
+	return c.cashOrder(ctx, req, cashSellOrderAPIID, "cash sell order")
+}
+
+func (c *Client) cashOrder(ctx context.Context, req CashOrderRequest, apiID string, operation string) (CashOrderResponse, error) {
+	var response CashOrderResponse
+	err := c.PostJSON(ctx, orderEndpoint, req, orderHeaders(apiID), &response)
+	if err != nil {
+		return CashOrderResponse{}, err
+	}
+	if response.ReturnCode != 0 {
+		return CashOrderResponse{}, kiwoomReturnCodeError(operation, response.ReturnCode, response.ReturnMsg)
+	}
+	return response, nil
+}
+
+func (c *Client) CashCancelOrder(ctx context.Context, req CashCancelRequest) (CashCancelResponse, error) {
+	var response CashCancelResponse
+	err := c.PostJSON(ctx, orderEndpoint, req, orderHeaders(cashCancelAPIID), &response)
+	if err != nil {
+		return CashCancelResponse{}, err
+	}
+	if response.ReturnCode != 0 {
+		return CashCancelResponse{}, kiwoomReturnCodeError("cash cancel order", response.ReturnCode, response.ReturnMsg)
+	}
+	return response, nil
+}
+
+func orderHeaders(apiID string) map[string]string {
+	return map[string]string{
+		"cont-yn":  "N",
+		"next-key": "",
+		"api-id":   apiID,
+	}
 }

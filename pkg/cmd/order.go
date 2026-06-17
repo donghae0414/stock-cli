@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"unicode"
 
 	"github.com/urfave/cli/v3"
 
@@ -20,6 +19,8 @@ var ordersCmd = cli.Command{
 	Category: "API RESOURCE",
 	Suggest:  true,
 	Commands: []*cli.Command{
+		&ordersCreateCmd,
+		&ordersCancelCmd,
 		&ordersListCmd,
 	},
 }
@@ -129,8 +130,15 @@ func isSixDigitStockCode(stockCode string) bool {
 	if len(stockCode) != 6 {
 		return false
 	}
-	for _, r := range stockCode {
-		if !unicode.IsDigit(r) {
+	return isDigitsOnly(stockCode)
+}
+
+func isDigitsOnly(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, ch := range value {
+		if ch < '0' || ch > '9' {
 			return false
 		}
 	}

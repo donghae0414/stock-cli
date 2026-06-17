@@ -15,6 +15,151 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newCachedOrderTestClient(t *testing.T, serverURL string) *Client {
+	t.Helper()
+
+	home := t.TempDir()
+	cachePath := filepath.Join(home, ".stock", "token.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0700))
+	writeTokenCache(t, cachePath, tokenCache{
+		Token:     "cached-token",
+		TokenType: "Bearer",
+		ExpiresDT: "20260611120000",
+	})
+
+	return NewClient("app", "secret",
+		WithHost(serverURL),
+		WithTokenCachePath(cachePath),
+		WithNow(func() time.Time { return mustTime(t, "20260611100000") }),
+	)
+}
+
+func TestCashBuyOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, orderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, cashBuyOrderAPIID, r.Header.Get("api-id"))
+		assert.Equal(t, "N", r.Header.Get("cont-yn"))
+		assert.Equal(t, "", r.Header.Get("next-key"))
+
+		var req CashOrderRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "SOR", req.DomesticExchangeType)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "1", req.OrderQuantity)
+		assert.Equal(t, "74100", req.OrderUnitPrice)
+		assert.Equal(t, "0", req.TradeType)
+		assert.Equal(t, "", req.ConditionPrice)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0000024","dmst_stex_tp":"SOR","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CashBuyOrder(context.Background(), CashOrderRequest{
+		DomesticExchangeType: "SOR",
+		StockCode:            "005930",
+		OrderQuantity:        "1",
+		OrderUnitPrice:       "74100",
+		TradeType:            "0",
+		ConditionPrice:       "",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0000024", response.OrderID)
+	assert.Equal(t, "SOR", response.DomesticExchangeType)
+}
+
+func TestCashSellOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, orderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, cashSellOrderAPIID, r.Header.Get("api-id"))
+
+		var req CashOrderRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "KRX", req.DomesticExchangeType)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "3", req.OrderQuantity)
+		assert.Equal(t, "", req.OrderUnitPrice)
+		assert.Equal(t, "3", req.TradeType)
+		assert.Equal(t, "", req.ConditionPrice)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0000138","dmst_stex_tp":"KRX","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CashSellOrder(context.Background(), CashOrderRequest{
+		DomesticExchangeType: "KRX",
+		StockCode:            "005930",
+		OrderQuantity:        "3",
+		OrderUnitPrice:       "",
+		TradeType:            "3",
+		ConditionPrice:       "",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0000138", response.OrderID)
+	assert.Equal(t, "KRX", response.DomesticExchangeType)
+}
+
+func TestCashCancelOrderSendsRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, orderEndpoint, r.URL.Path)
+		assert.Equal(t, "Bearer cached-token", r.Header.Get("authorization"))
+		assert.Equal(t, cashCancelAPIID, r.Header.Get("api-id"))
+		assert.Equal(t, "N", r.Header.Get("cont-yn"))
+		assert.Equal(t, "", r.Header.Get("next-key"))
+
+		var req CashCancelRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "NXT", req.DomesticExchangeType)
+		assert.Equal(t, "0000140", req.OriginalOrderID)
+		assert.Equal(t, "005930", req.StockCode)
+		assert.Equal(t, "0", req.CancelQuantity)
+
+		_, _ = w.Write([]byte(`{"ord_no":"0000141","base_orig_ord_no":"0000140","cncl_qty":"000000000001","return_code":0,"return_msg":"ok"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	response, err := c.CashCancelOrder(context.Background(), CashCancelRequest{
+		DomesticExchangeType: "NXT",
+		OriginalOrderID:      "0000140",
+		StockCode:            "005930",
+		CancelQuantity:       "0",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "0000141", response.OrderID)
+	assert.Equal(t, "0000140", response.BaseOriginalOrderID)
+	assert.Equal(t, "000000000001", response.CancelQuantity)
+}
+
+func TestCashOrderBusinessErrorIncludesReturnMessage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ord_no":"","return_code":9,"return_msg":"cash order rejected"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	_, err := c.CashBuyOrder(context.Background(), CashOrderRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "return_code=9")
+	assert.Contains(t, err.Error(), `return_msg="cash order rejected"`)
+}
+
+func TestCashCancelBusinessErrorIncludesReturnMessage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ord_no":"","return_code":8,"return_msg":"cash cancel rejected"}`))
+	}))
+	defer server.Close()
+
+	c := newCachedOrderTestClient(t, server.URL)
+	_, err := c.CashCancelOrder(context.Background(), CashCancelRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "return_code=8")
+	assert.Contains(t, err.Error(), `return_msg="cash cancel rejected"`)
+}
+
 func TestOrderListSendsRequestAndFollowsContinuation(t *testing.T) {
 	home := t.TempDir()
 	cachePath := filepath.Join(home, ".stock", "token.json")
@@ -167,7 +312,7 @@ func TestOrderListContinuationPageLimitReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "exceeded continuation page limit")
 }
 
-func TestOrderListBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
+func TestOrderListBusinessErrorIncludesReturnMessage(t *testing.T) {
 	home := t.TempDir()
 	cachePath := filepath.Join(home, ".stock", "token.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0700))
@@ -178,7 +323,7 @@ func TestOrderListBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
 	})
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"oso":[],"return_code":9,"return_msg":"private order detail"}`))
+		_, _ = w.Write([]byte(`{"oso":[],"return_code":9,"return_msg":"order list rejected"}`))
 	}))
 	defer server.Close()
 
@@ -191,6 +336,5 @@ func TestOrderListBusinessErrorDoesNotExposeReturnMessage(t *testing.T) {
 	_, err := c.OrderList(context.Background(), OrderListRequest{AllStockType: "0", TradeType: "0", ExchangeType: "0"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "return_code=9")
-	assert.Contains(t, err.Error(), "return_msg=redacted")
-	assert.NotContains(t, err.Error(), "private")
+	assert.Contains(t, err.Error(), `return_msg="order list rejected"`)
 }

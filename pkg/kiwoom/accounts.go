@@ -46,7 +46,7 @@ func (c *Client) AccountProfitRates(ctx context.Context) (AccountProfitRateRespo
 		return AccountProfitRateResponse{}, err
 	}
 	if response.ReturnCode != 0 {
-		return AccountProfitRateResponse{}, kiwoomReturnCodeError("account request", response.ReturnCode)
+		return AccountProfitRateResponse{}, kiwoomReturnCodeError("account request", response.ReturnCode, response.ReturnMsg)
 	}
 	return response, nil
 }

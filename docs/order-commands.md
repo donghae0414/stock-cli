@@ -4,12 +4,20 @@
 consumption. It calls Kiwoom `ka10075` and follows continuation pages before
 printing output, up to the 100-page safety limit.
 
+`stock orders create cash` and `stock orders cancel cash` submit live Kiwoom
+cash order requests immediately. Confirmation, dry-run policy, quote checks,
+cash checks, holdings checks, and price-limit checks belong in the Skill or
+workflow that calls this CLI, not in these command primitives.
+
 ## Command
 
 ```sh
 ./bin/stock orders list
 ./bin/stock orders list --side buy
 ./bin/stock orders list --side sell --stock-code 005930
+./bin/stock orders create cash --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
+./bin/stock orders create cash --side sell --stock-code 005930 --order-type market --quantity 1
+./bin/stock orders cancel cash --stock-code 005930 --original-order-id 0000140
 ```
 
 Options:
@@ -21,6 +29,130 @@ Options:
 
 The exchange type is not exposed as an option. Requests always use integrated
 exchange value `stex_tp: "0"`.
+
+## Cash Create Command
+
+`stock orders create cash` calls Kiwoom cash buy or cash sell order APIs.
+
+Options:
+
+| Option | Values | Purpose |
+| --- | --- | --- |
+| `--side` | `buy`, `sell` | `buy` calls `kt10000`; `sell` calls `kt10001`. |
+| `--stock-code` | six digits | Required stock code. |
+| `--order-type` | `limit`, `market` | `limit` maps to Kiwoom `trde_tp: "0"`; `market` maps to `trde_tp: "3"`. |
+| `--quantity` | positive integer | Whole-share order quantity. |
+| `--price` | positive integer | Per-share limit price only. Required for `limit`; rejected for `market`. It is never a total order amount. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+
+Limit buy example:
+
+```sh
+./bin/stock orders create cash --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
+```
+
+Market sell example:
+
+```sh
+./bin/stock orders create cash --side sell --stock-code 005930 --order-type market --quantity 1
+```
+
+Passing `--price` with `--order-type market` is a CLI validation error before
+credentials are loaded or any Kiwoom request is made.
+
+Request body for a limit buy:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "stk_cd": "005930",
+  "ord_qty": "1",
+  "ord_uv": "74100",
+  "trde_tp": "0",
+  "cond_uv": ""
+}
+```
+
+Request body for a market sell:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "stk_cd": "005930",
+  "ord_qty": "1",
+  "ord_uv": "",
+  "trde_tp": "3",
+  "cond_uv": ""
+}
+```
+
+Success output is normalized:
+
+```json
+{
+  "order_id": "0000024",
+  "trading_venue": "SOR"
+}
+```
+
+## Cash Cancel Command
+
+`stock orders cancel cash` calls Kiwoom cash cancel API `kt10003`.
+
+Options:
+
+| Option | Values | Purpose |
+| --- | --- | --- |
+| `--stock-code` | six digits | Required stock code. |
+| `--original-order-id` | digits | Required original order identifier. Preserved as a string, including leading zeros. |
+| `--quantity` | positive integer | Optional cancel quantity. Omit to cancel all remaining quantity via `cncl_qty: "0"`. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+
+Cancel remaining quantity:
+
+```sh
+./bin/stock orders cancel cash --stock-code 005930 --original-order-id 0000140
+```
+
+Request body:
+
+```json
+{
+  "dmst_stex_tp": "SOR",
+  "orig_ord_no": "0000140",
+  "stk_cd": "005930",
+  "cncl_qty": "0"
+}
+```
+
+Success output is normalized:
+
+```json
+{
+  "order_id": "0000141",
+  "base_original_order_id": "0000140",
+  "cancelled_quantity": 1
+}
+```
+
+## Error Output
+
+Success JSON stays minimal and does not include Kiwoom `return_code` or
+`return_msg`. Error output is different: when Kiwoom returns a nonzero business
+`return_code`, the CLI includes the parsed Kiwoom `return_msg` in the error so
+humans and CLI-using agents can diagnose upstream API failures.
+
+Example error shape:
+
+```text
+Kiwoom cash buy order failed return_code=9 return_msg="cash order rejected"
+```
+
+HTTP error summaries also include parsed `return_msg` when Kiwoom provides it.
+They do not dump the full raw response body, issued token fields,
+`authorization` fields, app keys, or secret keys. Treat `return_msg` as
+diagnostic output controlled by Kiwoom: useful for repair loops, but not
+something to copy into public logs.
 
 ## Kiwoom API Mapping
 
@@ -122,6 +254,7 @@ Before reporting completion:
 ```sh
 gofmt -w <edited-go-files>
 go test ./...
+go vet ./...
 go build -o bin/stock ./cmd/stock
 ```
 
@@ -167,3 +300,8 @@ PY
 
 When the configured account has no open/unfilled orders, `count` can be `0`.
 Treat that as normal live state, not a failure.
+
+Do not run live create/cancel smoke verification by default. Those commands can
+place or cancel real orders. Prefer unit tests and local validation-only CLI
+checks unless a live-order smoke is explicitly requested with full awareness of
+the side effects.
