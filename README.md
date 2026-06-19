@@ -209,6 +209,32 @@ cash/credit 분류 의미는 best-effort 값으로 취급합니다.
 
 자세한 API mapping과 안전한 smoke 검증은 `docs/order-commands.md`를 참고합니다.
 
+## 시장 규칙 helper
+
+`stock market tick`은 한국 주식 일반 호가 단위에 맞춰 입력 가격의 아래/위
+유효 호가를 계산하는 로컬 helper입니다. Kiwoom API를 호출하지 않고 credential
+또는 token cache도 읽지 않습니다.
+
+```sh
+./bin/stock market tick --price 353333
+```
+
+```json
+{
+  "price": 353333,
+  "tick_size": 500,
+  "lower_price": 353000,
+  "upper_price": 353500,
+  "is_valid_tick": false
+}
+```
+
+첫 구현 범위는 일반 주식 호가 단위 계산뿐입니다. `ka10004` orderbook 조회,
+`orders create` 가격 검증 변경, ETF/ETN/ELW 등 상품별 예외 처리는 포함하지
+않습니다.
+
+자세한 command contract는 `docs/market-commands.md`를 참고합니다.
+
 ## 주문 생성/취소
 
 `stock orders create cash`, `stock orders create credit`,
