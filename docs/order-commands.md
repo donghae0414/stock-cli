@@ -428,9 +428,6 @@ Optional live smoke verification should avoid printing raw order rows:
 ```sh
 set -euo pipefail
 umask 077
-set -a
-. ./.env
-set +a
 out="$(mktemp -t stock-orders-list.XXXXXX.json)"
 export out
 trap 'rm -f "$out"' EXIT

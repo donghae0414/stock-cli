@@ -319,14 +319,12 @@ func TestAccountsListCommandContainsCreditDetailFlag(t *testing.T) {
 
 func TestRunAccountsListMissingCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runAccountsList(context.Background(), accountListOptions{}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stock config set")
-	assert.Contains(t, err.Error(), "KIWOOM_APPKEY")
-	assert.Contains(t, err.Error(), "KIWOOM_SECRETKEY")
+	assert.NotContains(t, err.Error(), "KIWOOM_APPKEY")
+	assert.NotContains(t, err.Error(), "KIWOOM_SECRETKEY")
 }
 
 func TestAccountsListRejectsUnexpectedArgs(t *testing.T) {

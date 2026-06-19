@@ -15,50 +15,43 @@ import (
 
 func TestLoadFrom_allEmpty(t *testing.T) {
 	home := t.TempDir()
-	creds, err := LoadFrom(func() (string, error) { return home, nil }, func(string) string { return "" })
+	creds, err := LoadFrom(func() (string, error) { return home, nil })
 	require.NoError(t, err)
 	assert.Equal(t, SourceNone, creds.AppKeySource)
 	assert.Equal(t, SourceNone, creds.SecretKeySource)
 }
 
-func TestLoadFrom_envOnly(t *testing.T) {
+func TestLoadFrom_ignoresEnvironmentVariables(t *testing.T) {
 	home := t.TempDir()
-	env := map[string]string{
-		"KIWOOM_APPKEY":    "app-from-env",
-		"KIWOOM_SECRETKEY": "secret-from-env",
-	}
-	creds, err := LoadFrom(func() (string, error) { return home, nil }, func(k string) string { return env[k] })
+	t.Setenv("KIWOOM_APPKEY", "app-from-env")
+	t.Setenv("KIWOOM_SECRETKEY", "secret-from-env")
+
+	creds, err := LoadFrom(func() (string, error) { return home, nil })
 	require.NoError(t, err)
-	assert.Equal(t, "app-from-env", creds.AppKey)
-	assert.Equal(t, SourceEnv, creds.AppKeySource)
-	assert.Equal(t, "secret-from-env", creds.SecretKey)
-	assert.Equal(t, SourceEnv, creds.SecretKeySource)
+	assert.Empty(t, creds.AppKey)
+	assert.Equal(t, SourceNone, creds.AppKeySource)
+	assert.Empty(t, creds.SecretKey)
+	assert.Equal(t, SourceNone, creds.SecretKeySource)
 }
 
-func TestLoadFrom_completeEnvBypassesBrokenToml(t *testing.T) {
+func TestLoadFrom_envDoesNotBypassBrokenToml(t *testing.T) {
 	home := t.TempDir()
 	configDir := filepath.Join(home, ".stock")
 	require.NoError(t, os.MkdirAll(configDir, 0700))
 	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config"), []byte("not valid toml [[["), 0600))
+	t.Setenv("KIWOOM_APPKEY", "app-from-env")
+	t.Setenv("KIWOOM_SECRETKEY", "secret-from-env")
 
-	env := map[string]string{
-		"KIWOOM_APPKEY":    "app-from-env",
-		"KIWOOM_SECRETKEY": "secret-from-env",
-	}
-	creds, err := LoadFrom(func() (string, error) {
-		t.Fatal("homeDir should not be called when complete env credentials are set")
-		return "", nil
-	}, func(k string) string { return env[k] })
-	require.NoError(t, err)
-	assert.Equal(t, "app-from-env", creds.AppKey)
-	assert.Equal(t, "secret-from-env", creds.SecretKey)
+	_, err := LoadFrom(func() (string, error) { return home, nil })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse")
 }
 
 func TestLoadFrom_fileOnly(t *testing.T) {
 	home := t.TempDir()
 	writeTestConfig(t, home, "file-app", "file-secret")
 
-	creds, err := LoadFrom(func() (string, error) { return home, nil }, func(string) string { return "" })
+	creds, err := LoadFrom(func() (string, error) { return home, nil })
 	require.NoError(t, err)
 	assert.Equal(t, "file-app", creds.AppKey)
 	assert.Equal(t, SourceFile, creds.AppKeySource)
@@ -66,31 +59,16 @@ func TestLoadFrom_fileOnly(t *testing.T) {
 	assert.Equal(t, SourceFile, creds.SecretKeySource)
 }
 
-func TestLoadFrom_envOverridesFile(t *testing.T) {
+func TestLoadFrom_fileWinsEvenWhenEnvIsSet(t *testing.T) {
 	home := t.TempDir()
 	writeTestConfig(t, home, "file-app", "file-secret")
+	t.Setenv("KIWOOM_APPKEY", "env-app")
+	t.Setenv("KIWOOM_SECRETKEY", "env-secret")
 
-	env := map[string]string{
-		"KIWOOM_APPKEY":    "env-app",
-		"KIWOOM_SECRETKEY": "env-secret",
-	}
-	creds, err := LoadFrom(func() (string, error) { return home, nil }, func(k string) string { return env[k] })
+	creds, err := LoadFrom(func() (string, error) { return home, nil })
 	require.NoError(t, err)
-	assert.Equal(t, "env-app", creds.AppKey)
-	assert.Equal(t, SourceEnv, creds.AppKeySource)
-	assert.Equal(t, "env-secret", creds.SecretKey)
-	assert.Equal(t, SourceEnv, creds.SecretKeySource)
-}
-
-func TestLoadFrom_mixedSources(t *testing.T) {
-	home := t.TempDir()
-	writeTestConfig(t, home, "file-app", "file-secret")
-
-	env := map[string]string{"KIWOOM_APPKEY": "env-app"}
-	creds, err := LoadFrom(func() (string, error) { return home, nil }, func(k string) string { return env[k] })
-	require.NoError(t, err)
-	assert.Equal(t, "env-app", creds.AppKey)
-	assert.Equal(t, SourceEnv, creds.AppKeySource)
+	assert.Equal(t, "file-app", creds.AppKey)
+	assert.Equal(t, SourceFile, creds.AppKeySource)
 	assert.Equal(t, "file-secret", creds.SecretKey)
 	assert.Equal(t, SourceFile, creds.SecretKeySource)
 }
@@ -101,7 +79,7 @@ func TestLoadFrom_brokenToml(t *testing.T) {
 	require.NoError(t, os.MkdirAll(configDir, 0700))
 	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config"), []byte("not valid toml [[["), 0600))
 
-	_, err := LoadFrom(func() (string, error) { return home, nil }, func(string) string { return "" })
+	_, err := LoadFrom(func() (string, error) { return home, nil })
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse")
 	assert.Contains(t, err.Error(), "stock config set")
@@ -121,7 +99,7 @@ func TestLoadFrom_loosePermissionsWarning(t *testing.T) {
 	require.NoError(t, err)
 	os.Stderr = w
 
-	_, loadErr := LoadFrom(func() (string, error) { return home, nil }, func(string) string { return "" })
+	_, loadErr := LoadFrom(func() (string, error) { return home, nil })
 
 	w.Close()
 	os.Stderr = origStderr

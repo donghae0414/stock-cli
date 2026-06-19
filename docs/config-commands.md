@@ -25,8 +25,6 @@ Upbit credential storage behavior:
 - File format: TOML
 - Section: `[default]`
 - Stored keys: `access_key`, `secret_key`
-- Resolution order: environment variables first, then config file
-- Environment variables: `UPBIT_ACCESS_KEY`, `UPBIT_SECRET_KEY`
 - Directory permission: `0700`
 - File permission: `0600`
 
@@ -60,11 +58,10 @@ appkey = "..."
 secretkey = "..."
 ```
 
-Resolution order is:
+Credential resolution uses only the config file:
 
-1. Environment variables: `KIWOOM_APPKEY`, `KIWOOM_SECRETKEY`.
-2. Config file: `~/.stock/config`.
-3. Missing credential message when neither source provides credentials.
+1. Config file: `~/.stock/config`.
+2. Missing credential message when the config file does not provide credentials.
 
 Create `~/.stock/` with `0700` permissions and write `~/.stock/config` with
 `0600` permissions. `stock config set` is intentionally TTY-only, matching
@@ -73,10 +70,8 @@ Create `~/.stock/` with `0700` permissions and write `~/.stock/config` with
 After `stock config set` successfully saves credentials, it removes the default
 issued-token cache at `~/.stock/token.json`. A missing token cache is a harmless
 no-op. The next token-using command, such as `stock accounts list`, will issue a
-new token using the active credential source: the newly saved config credentials
-unless `KIWOOM_APPKEY`/`KIWOOM_SECRETKEY` environment variables override them.
-This invalidation is scoped to successful `stock config set`; changing those
-environment variables does not automatically invalidate the cache.
+new token using the newly saved config credentials. This invalidation is scoped
+to successful `stock config set`.
 
 ## Confirmed Kiwoom Token Issue Spec
 

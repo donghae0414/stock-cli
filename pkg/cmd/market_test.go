@@ -122,8 +122,6 @@ func TestParseMarketTickPriceRejectsInvalidInputs(t *testing.T) {
 
 func TestMarketTickValidationRejectsBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runMarketTick(context.Background(), marketTickOptions{}, nil)
 	require.Error(t, err)

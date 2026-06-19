@@ -212,12 +212,10 @@ func TestOrdersListRejectsUnexpectedArgs(t *testing.T) {
 
 func TestRunOrdersListMissingCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runOrdersList(context.Background(), orderListOptions{Side: "all"}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stock config set")
-	assert.Contains(t, err.Error(), "KIWOOM_APPKEY")
-	assert.Contains(t, err.Error(), "KIWOOM_SECRETKEY")
+	assert.NotContains(t, err.Error(), "KIWOOM_APPKEY")
+	assert.NotContains(t, err.Error(), "KIWOOM_SECRETKEY")
 }

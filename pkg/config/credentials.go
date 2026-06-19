@@ -13,14 +13,13 @@ type Source int
 
 const (
 	SourceNone Source = iota
-	SourceEnv
 	SourceFile
 )
 
+const MissingCredentialsMessage = "missing Kiwoom credentials: run 'stock config set'"
+
 func (s Source) String() string {
 	switch s {
-	case SourceEnv:
-		return "env"
 	case SourceFile:
 		return "file"
 	default:
@@ -55,21 +54,10 @@ func Path() (string, error) {
 }
 
 func Load() (Credentials, error) {
-	return LoadFrom(os.UserHomeDir, os.Getenv)
+	return LoadFrom(os.UserHomeDir)
 }
 
-func LoadFrom(homeDir func() (string, error), getenv func(string) string) (Credentials, error) {
-	envAppKey := getenv("KIWOOM_APPKEY")
-	envSecretKey := getenv("KIWOOM_SECRETKEY")
-	if envAppKey != "" && envSecretKey != "" {
-		return Credentials{
-			AppKey:          envAppKey,
-			SecretKey:       envSecretKey,
-			AppKeySource:    SourceEnv,
-			SecretKeySource: SourceEnv,
-		}, nil
-	}
-
+func LoadFrom(homeDir func() (string, error)) (Credentials, error) {
 	home, err := homeDir()
 	if err != nil {
 		return Credentials{}, fmt.Errorf("could not determine home directory: %w", err)
@@ -83,18 +71,12 @@ func LoadFrom(homeDir func() (string, error), getenv func(string) string) (Crede
 
 	var creds Credentials
 
-	if envAppKey != "" {
-		creds.AppKey = envAppKey
-		creds.AppKeySource = SourceEnv
-	} else if file.Kiwoom.AppKey != "" {
+	if file.Kiwoom.AppKey != "" {
 		creds.AppKey = file.Kiwoom.AppKey
 		creds.AppKeySource = SourceFile
 	}
 
-	if envSecretKey != "" {
-		creds.SecretKey = envSecretKey
-		creds.SecretKeySource = SourceEnv
-	} else if file.Kiwoom.SecretKey != "" {
+	if file.Kiwoom.SecretKey != "" {
 		creds.SecretKey = file.Kiwoom.SecretKey
 		creds.SecretKeySource = SourceFile
 	}

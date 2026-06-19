@@ -125,7 +125,7 @@ func runConfigShow() error {
 	}
 
 	if creds.IsEmpty() {
-		fmt.Fprintln(os.Stderr, "No credentials configured. Run 'stock config set' to set up your Kiwoom API keys, or set KIWOOM_APPKEY / KIWOOM_SECRETKEY environment variables.")
+		fmt.Fprintln(os.Stderr, "No credentials configured. Run 'stock config set' to set up your Kiwoom API keys.")
 		return nil
 	}
 

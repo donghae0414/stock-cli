@@ -172,7 +172,7 @@ func runOrdersCreateCash(ctx context.Context, opts cashOrderOptions, unusedArgs 
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)
@@ -206,7 +206,7 @@ func runOrdersCreateCredit(ctx context.Context, opts creditOrderOptions, unusedA
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)

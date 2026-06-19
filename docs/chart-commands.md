@@ -106,12 +106,10 @@ strings.
 
 ## Safe Smoke Verification
 
-After building, run small-count commands with credentials loaded:
+After building, run small-count commands after configuring credentials with
+`stock config set`:
 
 ```sh
-set -a
-. ./.env
-set +a
 ./bin/stock chart day --stock-code 005930 --count 2
 ./bin/stock chart week --stock-code 005930 --count 2
 ./bin/stock chart minute --stock-code 005930 --interval 1 --count 2

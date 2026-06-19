@@ -59,7 +59,7 @@ func runAccountsList(ctx context.Context, opts accountListOptions, unusedArgs []
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)

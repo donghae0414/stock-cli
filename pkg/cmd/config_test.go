@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -201,6 +202,31 @@ func TestRunConfigSet_preservesTokenCacheWhenTUIAborts(t *testing.T) {
 	assert.NoError(t, statErr)
 }
 
+func TestRunConfigShowMissingCredentialsMentionsConfigSetOnly(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	stdout, stderr, err := captureConfigOutput(t, runConfigShow)
+	require.NoError(t, err)
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "stock config set")
+	assert.NotContains(t, stderr, "KIWOOM_APPKEY")
+	assert.NotContains(t, stderr, "KIWOOM_SECRETKEY")
+}
+
+func TestRunConfigShowReportsFileSource(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	require.NoError(t, config.Save(config.Credentials{AppKey: "file-app-key", SecretKey: "file-secret-key"}))
+
+	stdout, stderr, err := captureConfigOutput(t, runConfigShow)
+	require.NoError(t, err)
+	assert.Empty(t, stderr)
+	assert.Contains(t, stdout, "source: file")
+	assert.NotContains(t, stdout, "source: env")
+	assert.NotContains(t, stdout, "file-app-key")
+	assert.NotContains(t, stdout, "file-secret-key")
+}
+
 func restoreConfigSetSeams(t *testing.T) {
 	t.Helper()
 	origIsTerminalFn := isTerminalFn
@@ -215,6 +241,33 @@ func restoreConfigSetSeams(t *testing.T) {
 		defaultTokenCachePathFn = origDefaultTokenCachePathFn
 		removeFileFn = origRemoveFileFn
 	})
+}
+
+func captureConfigOutput(t *testing.T, fn func() error) (string, string, error) {
+	t.Helper()
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+	stdoutR, stdoutW, err := os.Pipe()
+	require.NoError(t, err)
+	stderrR, stderrW, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = stdoutW
+	os.Stderr = stderrW
+
+	runErr := fn()
+
+	require.NoError(t, stdoutW.Close())
+	require.NoError(t, stderrW.Close())
+	os.Stdout = origStdout
+	os.Stderr = origStderr
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	_, _ = stdout.ReadFrom(stdoutR)
+	_, _ = stderr.ReadFrom(stderrR)
+	require.NoError(t, stdoutR.Close())
+	require.NoError(t, stderrR.Close())
+	return stdout.String(), stderr.String(), runErr
 }
 
 func TestConfigSetModel_viewContainsPrompts(t *testing.T) {

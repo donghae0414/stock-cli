@@ -256,8 +256,6 @@ func TestBuildCreditOrderRequestRejectsUnexpectedArgs(t *testing.T) {
 
 func TestRunOrdersCreateCashValidatesBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runOrdersCreateCash(context.Background(), cashOrderOptions{
 		Side:         "sell",
@@ -274,8 +272,6 @@ func TestRunOrdersCreateCashValidatesBeforeCredentials(t *testing.T) {
 
 func TestOrdersCreateCashExplicitEmptyPriceValidatesBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	cmd := &cli.Command{}
 	cmd.Commands = []*cli.Command{&ordersCmd}
@@ -302,8 +298,6 @@ func TestOrdersCreateCashExplicitEmptyPriceValidatesBeforeCredentials(t *testing
 
 func TestRunOrdersCreateCreditValidatesBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runOrdersCreateCredit(context.Background(), creditOrderOptions{
 		Side:             "sell",
@@ -323,8 +317,6 @@ func TestRunOrdersCreateCreditValidatesBeforeCredentials(t *testing.T) {
 
 func TestOrdersCreateCreditExplicitEmptyPriceValidatesBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	cmd := &cli.Command{}
 	cmd.Commands = []*cli.Command{&ordersCmd}

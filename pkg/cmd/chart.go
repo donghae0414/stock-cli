@@ -159,7 +159,7 @@ func runChartDay(ctx context.Context, opts chartOptions, unusedArgs []string) er
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)
@@ -190,7 +190,7 @@ func runChartWeek(ctx context.Context, opts chartOptions, unusedArgs []string) e
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)
@@ -221,7 +221,7 @@ func runChartMinute(ctx context.Context, opts minuteChartOptions, unusedArgs []s
 		return err
 	}
 	if creds.AppKey == "" || creds.SecretKey == "" {
-		return fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	client := kiwoom.NewClient(creds.AppKey, creds.SecretKey)

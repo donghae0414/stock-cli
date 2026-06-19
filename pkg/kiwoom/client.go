@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"stock-cli/pkg/config"
 )
 
 const (
@@ -95,7 +97,7 @@ func DefaultTokenCachePath() (string, error) {
 
 func (c *Client) EnsureToken(ctx context.Context) (string, error) {
 	if c.appKey == "" || c.secretKey == "" {
-		return "", fmt.Errorf("missing Kiwoom credentials: run 'stock config set' or set KIWOOM_APPKEY / KIWOOM_SECRETKEY")
+		return "", fmt.Errorf(config.MissingCredentialsMessage)
 	}
 
 	if token, ok := c.readValidCachedToken(); ok {

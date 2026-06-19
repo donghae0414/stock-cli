@@ -39,6 +39,16 @@ func TestEnsureTokenReusesValidCache(t *testing.T) {
 	assert.Equal(t, "cached-token", token)
 }
 
+func TestEnsureTokenMissingCredentialsMentionsConfigSetOnly(t *testing.T) {
+	c := NewClient("", "")
+
+	_, err := c.EnsureToken(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stock config set")
+	assert.NotContains(t, err.Error(), "KIWOOM_APPKEY")
+	assert.NotContains(t, err.Error(), "KIWOOM_SECRETKEY")
+}
+
 func TestEnsureTokenRepairsValidCachePermissions(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("windows does not support unix permission assertions")

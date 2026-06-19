@@ -32,20 +32,7 @@ go build -o bin/stock ./cmd/stock
 
 ## 설정 확인
 
-현재 `.env`는 로컬 테스트용 Kiwoom 키를 담고 있으며 파일 권한은 `0600`이어야
-합니다. 값 자체를 출력하지 말고 권한만 확인합니다.
-
-```sh
-stat -f "%Lp %N" .env
-```
-
-`.env`를 현재 터미널 세션에 로드합니다.
-
-```sh
-set -a
-. ./.env
-set +a
-```
+Kiwoom API 키는 `stock config set`으로 `~/.stock/config`에 저장합니다.
 
 설정 명령을 호출합니다.
 
@@ -100,9 +87,6 @@ rm -rf "$QA_HOME"
 보유 중인 종목을 JSON 배열로 출력합니다.
 
 ```sh
-set -a
-. ./.env
-set +a
 ./bin/stock accounts list
 ```
 
@@ -307,11 +291,8 @@ Content-Type: application/json;charset=UTF-8
 
 `stock config set`이 새 credential 저장에 성공하면 기존 `~/.stock/token.json`을
 삭제합니다. 따라서 다음 token-using command는 활성 credential source로 토큰을
-다시 발급받습니다. 환경 변수가 없으면 방금 저장한 config credential을 사용하고,
-`KIWOOM_APPKEY`/`KIWOOM_SECRETKEY`가 있으면 기존 resolution order대로 환경
-변수가 우선합니다. 이미 token cache가 없으면 정상 no-op로 처리됩니다. 이 동작은
-성공한 `stock config set`에만 적용되며, 환경 변수 변경은 token cache를 자동으로
-삭제하지 않습니다.
+다시 발급받습니다. 이미 token cache가 없으면 정상 no-op로 처리됩니다. 이 동작은
+성공한 `stock config set`에만 적용됩니다.
 
 토큰 캐시 파일은 `0600`, 상위 `~/.stock` 디렉토리는 `0700` 권한으로 보정합니다.
 토큰 값은 CLI 출력, 로그, 문서, git diff에 노출하지 않아야 합니다.

@@ -152,8 +152,6 @@ func TestNormalizeMinuteChartOutputUsesSchemaAndPreservesTimestampTo(t *testing.
 
 func TestChartValidationRejectsBeforeCredentials(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	t.Setenv("KIWOOM_APPKEY", "")
-	t.Setenv("KIWOOM_SECRETKEY", "")
 
 	err := runChartMinute(context.Background(), minuteChartOptions{
 		chartOptions: chartOptions{StockCode: "005930", Count: 1, To: "20260618"},
