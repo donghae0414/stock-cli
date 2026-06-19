@@ -22,6 +22,7 @@ func init() {
 		ErrWriter: &CommandErrorBuffer,
 		Commands: []*cli.Command{
 			&accountsCmd,
+			&chartCmd,
 			&configCmd,
 			&marketCmd,
 			&ordersCmd,

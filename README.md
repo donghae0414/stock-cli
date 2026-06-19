@@ -209,6 +209,24 @@ cash/credit 분류 의미는 best-effort 값으로 취급합니다.
 
 자세한 API mapping과 안전한 smoke 검증은 `docs/order-commands.md`를 참고합니다.
 
+## 차트 조회
+
+`stock chart day`, `stock chart week`, `stock chart minute`는 Kiwoom 차트 API를
+호출해서 agent가 읽기 쉬운 candle JSON 객체를 출력합니다.
+
+```sh
+./bin/stock chart day --stock-code 005930 --count 10
+./bin/stock chart week --stock-code 005930 --count 10 --to 20260618
+./bin/stock chart minute --stock-code 005930 --interval 1 --count 10 --to 20260618132000
+```
+
+출력은 `stock_code`를 top-level에 한 번만 포함하고, 각 candle은 `candles` 배열에
+들어갑니다. 차트에서는 Kiwoom `cur_prc`를 candle 의미에 맞게 `close_price`로
+출력합니다. 가격과 거래대금은 Kiwoom 부호를 절대값 처리한 JSON number이며,
+날짜와 timestamp는 문자열입니다.
+
+자세한 API mapping과 안전한 smoke 검증은 `docs/chart-commands.md`를 참고합니다.
+
 ## 시장 규칙 helper
 
 `stock market tick`은 한국 주식 일반 호가 단위에 맞춰 입력 가격의 아래/위
