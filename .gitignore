@@ -1,6 +1,8 @@
 .env
 .gjc/
 .omx/
+.agents/
+skills-lock.json
 .DS_Store
 bin/
 build/
