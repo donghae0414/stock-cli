@@ -24,6 +24,7 @@ func init() {
 			&accountsCmd,
 			&chartCmd,
 			&configCmd,
+			&codesCmd,
 			&marketCmd,
 			&ordersCmd,
 		},

@@ -1,8 +1,8 @@
 # stock-cli
 
 Kiwoom REST API를 사용하기 위한 Go 기반 주식 CLI입니다. 현재 구현된 범위는
-Kiwoom 기본 설정, 계좌 보유 종목 조회, 주문 리스트 조회, 현금/신용 주문
-생성 및 취소 명령입니다.
+Kiwoom 기본 설정, 종목코드 조회, 계좌 보유 종목 조회, 주문 리스트 조회,
+현금/신용 주문 생성 및 취소 명령입니다.
 
 ## 준비
 
@@ -41,6 +41,7 @@ Kiwoom API 키는 `stock config set`으로 `~/.stock/config`에 저장합니다.
 ./bin/stock config --help
 ./bin/stock config path
 ./bin/stock config show
+./bin/stock codes lookup --name 삼성전자
 ./bin/stock accounts --help
 ./bin/stock accounts list
 ```
@@ -210,6 +211,23 @@ cash/credit 분류 의미는 best-effort 값으로 취급합니다.
 날짜와 timestamp는 문자열입니다.
 
 자세한 API mapping과 안전한 smoke 검증은 `docs/chart-commands.md`를 참고합니다.
+
+## 종목코드 조회
+
+`stock codes lookup`은 Kiwoom `ka10099` 종목정보 리스트 API를 호출해서
+종목명 또는 부분 종목명을 6자리 종목코드 후보로 변환합니다. Agent가 사용자의
+종목명 표현을 `--stock-code` 입력으로 바꾸기 위한 read-only 명령입니다.
+
+```sh
+./bin/stock codes lookup --name 삼성전자
+./bin/stock codes lookup --name 삼성전자 --name 하이닉스 --limit 10
+```
+
+출력은 항상 `ok`, `queries`, `errors`를 가진 JSON 객체입니다. 각 query의
+`status`는 `exact`, `single_partial`, `ambiguous`, `not_found` 중 하나이며,
+`ambiguous`이면 후속 주문/차트 명령 전에 후보 중 어떤 종목인지 확인해야 합니다.
+
+자세한 command contract는 `docs/codes-commands.md`를 참고합니다.
 
 ## 시장 규칙 helper
 

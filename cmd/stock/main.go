@@ -18,7 +18,7 @@ func main() {
 		}
 		if cmd.CommandErrorBuffer.Len() > 0 {
 			_, _ = os.Stderr.Write(cmd.CommandErrorBuffer.Bytes())
-		} else {
+		} else if err.Error() != "" {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		}
 		os.Exit(exitCode)
