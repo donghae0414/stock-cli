@@ -30,6 +30,56 @@ go build -o bin/stock ./cmd/stock
 
 `bin/`은 `.gitignore`에 포함되어 있습니다.
 
+## GitHub/npm 공개 전 점검
+
+이 저장소는 아직 원격 GitHub 저장소나 npm 배포를 자동으로 수행하지 않습니다.
+공개 전에 로컬에서 아래 항목을 확인합니다.
+
+```sh
+git status --short --branch
+git remote -v
+git check-ignore -v .env .omx/ .gjc/ .stock/ node_modules/ bin/ npm/bin/ dist/ build/ coverage.out
+```
+
+`.env`, `.omx/`, `.gjc/`, `~/.stock/config`, `~/.stock/token.json`, 빌드 산출물은
+공개 저장소와 npm package에 포함하면 안 됩니다. Kiwoom App Key, Secret Key,
+발급 token 값은 문서나 commit에 넣지 않습니다.
+
+npm 배포 준비용 package는 루트 `package.json`과 `npm/` 실행 wrapper로 구성되어
+있습니다. 현재 package name은 `@dongwuk/stock-cli`이고 license는 MIT입니다.
+GitHub repository metadata는 `https://github.com/dongwuk/stock-cli` 기준으로 준비되어
+있으므로, 다른 저장소 이름으로 만들 경우 `package.json`의 repository/homepage/bugs
+URL을 함께 바꿉니다.
+
+로컬 npm package 검증:
+
+```sh
+npm run build:local
+npm run build:targets
+npm run verify:package
+npm run smoke
+npm run smoke:install
+npm run pack:dry-run
+```
+
+여러 OS/CPU용 binary payload를 한 번에 준비하려면 아래 명령을 사용합니다.
+
+```sh
+npm run build:targets
+```
+
+`npm pack`은 `prepack` 단계에서 모든 지원 platform binary를 다시 빌드한 뒤
+`npm run verify:package`를 실행합니다. 지원 platform binary 중 하나라도 없거나 비어
+있으면 package 생성이 실패합니다.
+
+`npm run smoke:install`은 package tarball을 임시 디렉터리에 설치하고
+`STOCK_CLI_DISABLE_REPO_FALLBACK=1` 상태에서 `stock --help`를 실행합니다. 그래서
+repo-local `bin/stock`에 기대지 않고 npm package 안의 binary layout이 동작하는지
+확인할 수 있습니다.
+
+`npm publish`를 실행하면 `prepublishOnly` 단계에서 같은 설치 smoke test가 먼저
+실행됩니다.
+
 ## 설정 확인
 
 Kiwoom API 키는 `stock config set`으로 `~/.stock/config`에 저장합니다.

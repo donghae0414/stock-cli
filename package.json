@@ -1,0 +1,47 @@
+{
+  "name": "@dongwuk/stock-cli",
+  "version": "0.1.0",
+  "description": "Kiwoom REST API stock CLI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dongwuk/stock-cli.git"
+  },
+  "homepage": "https://github.com/dongwuk/stock-cli#readme",
+  "bugs": {
+    "url": "https://github.com/dongwuk/stock-cli/issues"
+  },
+  "bin": {
+    "stock": "npm/run.js"
+  },
+  "files": [
+    "README.md",
+    "npm/run.js",
+    "npm/platform.js",
+    "npm/verify-package.mjs",
+    "npm/bin"
+  ],
+  "scripts": {
+    "build:local": "node npm/build-local.mjs",
+    "build:targets": "node npm/build-platform-packages.mjs",
+    "verify:package": "node npm/verify-package.mjs",
+    "prepack": "node npm/build-platform-packages.mjs && node npm/verify-package.mjs",
+    "prepublishOnly": "npm run smoke:install",
+    "smoke": "node npm/run.js --help",
+    "smoke:install": "node npm/smoke-install.mjs",
+    "pack:dry-run": "node npm/pack-dry-run.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "kiwoom",
+    "stock",
+    "cli",
+    "korean-stock",
+    "trading"
+  ]
+}
