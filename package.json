@@ -1,15 +1,15 @@
 {
-  "name": "@dongwuk/stock-cli",
+  "name": "@donghae0414/stock-cli",
   "version": "0.1.0",
   "description": "Kiwoom REST API stock CLI",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dongwuk/stock-cli.git"
+    "url": "git+https://github.com/donghae0414/stock-cli.git"
   },
-  "homepage": "https://github.com/dongwuk/stock-cli#readme",
+  "homepage": "https://github.com/donghae0414/stock-cli#readme",
   "bugs": {
-    "url": "https://github.com/dongwuk/stock-cli/issues"
+    "url": "https://github.com/donghae0414/stock-cli/issues"
   },
   "bin": {
     "stock": "npm/run.js"

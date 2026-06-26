@@ -10,10 +10,10 @@ resource-based CLI 흐름을 참고해 Kiwoom 증권 API용으로 만든 도구�
 
 ### npm package
 
-GitHub/npm 공개 후에는 package manager로 설치할 수 있습니다.
+npm 배포 후에는 package manager로 설치할 수 있습니다.
 
 ```sh
-npm install -g @dongwuk/stock-cli
+npm install -g @donghae0414/stock-cli
 stock --help
 ```
 
@@ -25,7 +25,7 @@ Node.js 18 이상이 필요합니다. npm package는 플랫폼별 `stock` binary
 소스에서 바로 빌드하려면 Go toolchain이 필요합니다.
 
 ```sh
-git clone https://github.com/dongwuk/stock-cli.git
+git clone https://github.com/donghae0414/stock-cli.git
 cd stock-cli
 go test ./...
 go build -o bin/stock ./cmd/stock
