@@ -1,16 +1,16 @@
-# Stock CLI Order Commands
+# Stock CLI Order 명령
 
-`stock orders list` returns normalized Kiwoom open/unfilled order rows for agent
-consumption. It calls Kiwoom `ka10075` and follows continuation pages before
-printing output, up to the 100-page safety limit.
+`stock orders list`는 agent가 소비할 수 있도록 정규화된 Kiwoom 미체결 주문 row를
+반환합니다. Kiwoom `ka10075`를 호출하고, 출력 전에 continuation page를 따라가며,
+100 page safety limit까지 처리합니다.
 
 `stock orders create cash`, `stock orders create credit`, `stock orders cancel
-cash`, and `stock orders cancel credit` submit live Kiwoom order requests
-immediately. Confirmation, dry-run policy, quote checks, cash checks,
-collateral checks, loan checks, holdings checks, and price-limit checks belong
-in the Skill or workflow that calls this CLI, not in these command primitives.
+cash`, `stock orders cancel credit`은 live Kiwoom 주문 요청을 즉시 제출합니다.
+확인, dry-run 정책, quote check, 현금 check, 담보 check, 대출 check, 보유수량
+check, 가격제한 check는 이 CLI primitive가 아니라 이 CLI를 호출하는 Skill 또는
+workflow의 책임입니다.
 
-## Command
+## 명령
 
 ```sh
 ./bin/stock orders list
@@ -25,47 +25,48 @@ in the Skill or workflow that calls this CLI, not in these command primitives.
 ./bin/stock orders cancel credit --stock-code 005930 --original-order-id 0001615
 ```
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--side` | `all`, `buy`, `sell` | Maps to Kiwoom `trde_tp` values `0`, `2`, `1`. Defaults to `all`. |
-| `--stock-code` | six digits | Filters to one stock. When absent, all stocks are queried. |
+| `--side` | `all`, `buy`, `sell` | Kiwoom `trde_tp` 값 `0`, `2`, `1`로 mapping합니다. 기본값은 `all`입니다. |
+| `--stock-code` | 6자리 숫자 | 한 종목으로 filter합니다. 없으면 모든 종목을 조회합니다. |
 
-The exchange type is not exposed as an option. Requests always use integrated
-exchange value `stex_tp: "0"`.
+거래소 구분은 옵션으로 노출하지 않습니다. 요청은 항상 통합 거래소 값
+`stex_tp: "0"`을 사용합니다.
 
-## Cash Create Command
+## Cash Create 명령
 
-`stock orders create cash` calls Kiwoom cash buy or cash sell order APIs.
+`stock orders create cash`는 Kiwoom 현금 매수 또는 현금 매도 주문 API를
+호출합니다.
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--side` | `buy`, `sell` | `buy` calls `kt10000`; `sell` calls `kt10001`. |
-| `--stock-code` | six digits | Required stock code. |
-| `--order-type` | `limit`, `market` | `limit` maps to Kiwoom `trde_tp: "0"`; `market` maps to `trde_tp: "3"`. |
-| `--quantity` | positive integer | Whole-share order quantity. |
-| `--price` | positive integer | Per-share limit price only. Required for `limit`; rejected for `market`. It is never a total order amount. |
-| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+| `--side` | `buy`, `sell` | `buy`는 `kt10000`, `sell`은 `kt10001`을 호출합니다. |
+| `--stock-code` | 6자리 숫자 | 필수 종목 코드입니다. |
+| `--order-type` | `limit`, `market` | `limit`은 Kiwoom `trde_tp: "0"`, `market`은 `trde_tp: "3"`으로 mapping합니다. |
+| `--quantity` | 양의 정수 | 정수 주식 주문수량입니다. |
+| `--price` | 양의 정수 | 1주당 지정가 가격입니다. `limit`에서는 필수이고, `market`에서는 거부됩니다. 총 주문금액이 아닙니다. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | 기본값은 `SOR`이며 Kiwoom `dmst_stex_tp`로 mapping합니다. |
 
-Limit buy example:
+지정가 매수 예시:
 
 ```sh
 ./bin/stock orders create cash --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
 ```
 
-Market sell example:
+시장가 매도 예시:
 
 ```sh
 ./bin/stock orders create cash --side sell --stock-code 005930 --order-type market --quantity 1
 ```
 
-Passing `--price` with `--order-type market` is a CLI validation error before
-credentials are loaded or any Kiwoom request is made.
+`--order-type market`과 함께 `--price`를 전달하면 credential 로드나 Kiwoom 요청
+전에 CLI validation error가 됩니다.
 
-Request body for a limit buy:
+지정가 매수 요청 body:
 
 ```json
 {
@@ -78,7 +79,7 @@ Request body for a limit buy:
 }
 ```
 
-Request body for a market sell:
+시장가 매도 요청 body:
 
 ```json
 {
@@ -91,7 +92,7 @@ Request body for a market sell:
 }
 ```
 
-Success output is normalized:
+성공 출력은 정규화됩니다.
 
 ```json
 {
@@ -100,26 +101,26 @@ Success output is normalized:
 }
 ```
 
-## Cash Cancel Command
+## Cash Cancel 명령
 
-`stock orders cancel cash` calls Kiwoom cash cancel API `kt10003`.
+`stock orders cancel cash`는 Kiwoom 현금 취소 API `kt10003`을 호출합니다.
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--stock-code` | six digits | Required stock code. |
-| `--original-order-id` | digits | Required original order identifier. Preserved as a string, including leading zeros. |
-| `--quantity` | positive integer | Optional cancel quantity. Omit to cancel all remaining quantity via `cncl_qty: "0"`. |
-| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+| `--stock-code` | 6자리 숫자 | 필수 종목 코드입니다. |
+| `--original-order-id` | 숫자 | 필수 원주문 번호입니다. 선행 zero를 포함해 문자열로 보존합니다. |
+| `--quantity` | 양의 정수 | 선택 취소 수량입니다. 생략하면 `cncl_qty: "0"`으로 잔량 전체를 취소합니다. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | 기본값은 `SOR`이며 Kiwoom `dmst_stex_tp`로 mapping합니다. |
 
-Cancel remaining quantity:
+잔량 전체 취소:
 
 ```sh
 ./bin/stock orders cancel cash --stock-code 005930 --original-order-id 0000140
 ```
 
-Request body:
+요청 body:
 
 ```json
 {
@@ -130,7 +131,7 @@ Request body:
 }
 ```
 
-Success output is normalized:
+성공 출력은 정규화됩니다.
 
 ```json
 {
@@ -140,47 +141,48 @@ Success output is normalized:
 }
 ```
 
-## Credit Create Command
+## Credit Create 명령
 
-`stock orders create credit` calls Kiwoom credit buy or credit sell order APIs.
+`stock orders create credit`은 Kiwoom 신용 매수 또는 신용 매도 주문 API를
+호출합니다.
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--side` | `buy`, `sell` | `buy` calls `kt10006`; `sell` calls `kt10007`. |
-| `--stock-code` | six digits | Required stock code. |
-| `--order-type` | `limit`, `market` | `limit` maps to Kiwoom `trde_tp: "0"`; `market` maps to `trde_tp: "3"`. |
-| `--quantity` | positive integer | Whole-share order quantity. |
-| `--price` | positive integer | Per-share limit price only. Required for `limit`; rejected for `market`. It is never a total order amount. |
-| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
-| `--loan-selection` | `individual`, `aggregate` | Required for credit sell only. `individual` maps to `crd_deal_tp: "33"`; `aggregate` maps to `crd_deal_tp: "99"`. |
-| `--loan-date` | `YYYYMMDD` | Required with `--loan-selection individual`; rejected with `aggregate` and rejected for credit buy. |
+| `--side` | `buy`, `sell` | `buy`는 `kt10006`, `sell`은 `kt10007`을 호출합니다. |
+| `--stock-code` | 6자리 숫자 | 필수 종목 코드입니다. |
+| `--order-type` | `limit`, `market` | `limit`은 Kiwoom `trde_tp: "0"`, `market`은 `trde_tp: "3"`으로 mapping합니다. |
+| `--quantity` | 양의 정수 | 정수 주식 주문수량입니다. |
+| `--price` | 양의 정수 | 1주당 지정가 가격입니다. `limit`에서는 필수이고, `market`에서는 거부됩니다. 총 주문금액이 아닙니다. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | 기본값은 `SOR`이며 Kiwoom `dmst_stex_tp`로 mapping합니다. |
+| `--loan-selection` | `individual`, `aggregate` | 신용 매도에서만 필수입니다. `individual`은 `crd_deal_tp: "33"`, `aggregate`는 `crd_deal_tp: "99"`로 mapping합니다. |
+| `--loan-date` | `YYYYMMDD` | `--loan-selection individual`과 함께 필수입니다. `aggregate`에서는 거부되고, 신용 매수에서도 거부됩니다. |
 
-Credit buy limit example:
+신용 매수 지정가 예시:
 
 ```sh
 ./bin/stock orders create credit --side buy --stock-code 005930 --order-type limit --quantity 1 --price 74100
 ```
 
-Credit sell aggregate example:
+신용 매도 aggregate 예시:
 
 ```sh
 ./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection aggregate
 ```
 
-Credit sell individual loan-date example:
+신용 매도 individual loan-date 예시:
 
 ```sh
 ./bin/stock orders create credit --side sell --stock-code 005930 --order-type limit --quantity 3 --price 6450 --loan-selection individual --loan-date 20260601
 ```
 
-Passing `--price` with `--order-type market` is a CLI validation error before
-credentials are loaded or any Kiwoom request is made. Passing `--loan-date`
-with `--loan-selection aggregate` is also a validation error before credentials
-or network.
+`--order-type market`과 함께 `--price`를 전달하면 credential 로드나 Kiwoom 요청
+전에 CLI validation error가 됩니다. `--loan-selection aggregate`와 함께
+`--loan-date`를 전달하는 것도 credential 또는 network 전에 validation error가
+됩니다.
 
-Request body for a credit buy limit order:
+신용 매수 지정가 주문 요청 body:
 
 ```json
 {
@@ -193,7 +195,7 @@ Request body for a credit buy limit order:
 }
 ```
 
-Request body for a credit sell aggregate limit order:
+신용 매도 aggregate 지정가 주문 요청 body:
 
 ```json
 {
@@ -208,7 +210,7 @@ Request body for a credit sell aggregate limit order:
 }
 ```
 
-Request body for a credit sell individual market order:
+신용 매도 individual 시장가 주문 요청 body:
 
 ```json
 {
@@ -223,7 +225,7 @@ Request body for a credit sell individual market order:
 }
 ```
 
-Success output is normalized:
+성공 출력은 정규화됩니다.
 
 ```json
 {
@@ -232,26 +234,26 @@ Success output is normalized:
 }
 ```
 
-## Credit Cancel Command
+## Credit Cancel 명령
 
-`stock orders cancel credit` calls Kiwoom credit cancel API `kt10009`.
+`stock orders cancel credit`은 Kiwoom 신용 취소 API `kt10009`를 호출합니다.
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--stock-code` | six digits | Required stock code. |
-| `--original-order-id` | digits | Required original order identifier. Preserved as a string, including leading zeros. |
-| `--quantity` | positive integer | Optional cancel quantity. Omit to cancel all remaining quantity via `cncl_qty: "0"`. |
-| `--trading-venue` | `SOR`, `KRX`, `NXT` | Defaults to `SOR`; maps to Kiwoom `dmst_stex_tp`. |
+| `--stock-code` | 6자리 숫자 | 필수 종목 코드입니다. |
+| `--original-order-id` | 숫자 | 필수 원주문 번호입니다. 선행 zero를 포함해 문자열로 보존합니다. |
+| `--quantity` | 양의 정수 | 선택 취소 수량입니다. 생략하면 `cncl_qty: "0"`으로 잔량 전체를 취소합니다. |
+| `--trading-venue` | `SOR`, `KRX`, `NXT` | 기본값은 `SOR`이며 Kiwoom `dmst_stex_tp`로 mapping합니다. |
 
-Cancel remaining quantity:
+잔량 전체 취소:
 
 ```sh
 ./bin/stock orders cancel credit --stock-code 005930 --original-order-id 0001615
 ```
 
-Request body:
+요청 body:
 
 ```json
 {
@@ -262,7 +264,7 @@ Request body:
 }
 ```
 
-Success output is normalized:
+성공 출력은 정규화됩니다.
 
 ```json
 {
@@ -272,14 +274,14 @@ Success output is normalized:
 }
 ```
 
-## Error Output
+## 오류 출력
 
-Success JSON stays minimal and does not include Kiwoom `return_code` or
-`return_msg`. Error output is different: when Kiwoom returns a nonzero business
-`return_code`, the CLI includes the parsed Kiwoom `return_msg` in the error so
-humans and CLI-using agents can diagnose upstream API failures.
+성공 JSON은 최소 필드만 유지하고 Kiwoom `return_code` 또는 `return_msg`를 포함하지
+않습니다. 오류 출력은 다릅니다. Kiwoom이 nonzero business `return_code`를
+반환하면 CLI는 parse된 Kiwoom `return_msg`를 error에 포함하여 사람과 CLI 사용
+agent가 upstream API 실패를 진단할 수 있게 합니다.
 
-Example error shape:
+오류 shape 예시:
 
 ```text
 Kiwoom cash buy order failed return_code=9 return_msg="cash order rejected"
@@ -289,15 +291,14 @@ Kiwoom cash buy order failed return_code=9 return_msg="cash order rejected"
 Kiwoom credit sell order failed return_code=9 return_msg="credit order rejected"
 ```
 
-HTTP error summaries also include parsed `return_msg` when Kiwoom provides it.
-They do not dump the full raw response body, issued token fields,
-`authorization` fields, app keys, or secret keys. Treat `return_msg` as
-diagnostic output controlled by Kiwoom: useful for repair loops, but not
-something to copy into public logs.
+HTTP error summary도 Kiwoom이 제공하는 경우 parse된 `return_msg`를 포함합니다.
+전체 raw response body, 발급 token 필드, `authorization` 필드, app key, secret
+key는 dump하지 않습니다. `return_msg`는 Kiwoom이 제어하는 diagnostic output으로
+취급하세요. 복구 loop에는 유용하지만 public log에 그대로 복사할 대상은 아닙니다.
 
 ## Kiwoom API Mapping
 
-`stock orders list` calls Kiwoom order list request `ka10075`.
+`stock orders list`는 Kiwoom 주문 조회 요청 `ka10075`를 호출합니다.
 
 ```http
 POST https://api.kiwoom.com/api/dostk/acnt
@@ -308,8 +309,8 @@ next-key:
 api-id: ka10075
 ```
 
-`stock orders create cash` and `stock orders cancel cash` call the cash order
-endpoint:
+`stock orders create cash`와 `stock orders cancel cash`는 현금 주문 endpoint를
+호출합니다.
 
 ```http
 POST https://api.kiwoom.com/api/dostk/ordr
@@ -320,8 +321,8 @@ next-key:
 api-id: kt10000 | kt10001 | kt10003
 ```
 
-`stock orders create credit` and `stock orders cancel credit` call the credit
-order endpoint:
+`stock orders create credit`과 `stock orders cancel credit`은 신용 주문
+endpoint를 호출합니다.
 
 ```http
 POST https://api.kiwoom.com/api/dostk/crdordr
@@ -332,7 +333,7 @@ next-key:
 api-id: kt10006 | kt10007 | kt10009
 ```
 
-Request body for all stocks and all sides:
+모든 종목과 모든 side 요청 body:
 
 ```json
 {
@@ -343,7 +344,7 @@ Request body for all stocks and all sides:
 }
 ```
 
-Request body for Samsung buy orders:
+삼성전자 매수 주문 조회 body:
 
 ```json
 {
@@ -354,45 +355,44 @@ Request body for Samsung buy orders:
 }
 ```
 
-If a response header returns `cont-yn: Y`, the command requests the next page
-with the returned `next-key` and merges rows from every page until the response
-ends or the 100-page safety limit is reached. Public output does not include
-pagination metadata. A repeated `next-key` is treated as an upstream
-continuation error to avoid replaying the same page indefinitely.
+응답 header가 `cont-yn: Y`를 반환하면 명령은 반환된 `next-key`로 다음 page를
+요청하고, 응답이 끝나거나 100 page safety limit에 도달할 때까지 모든 page의
+row를 merge합니다. Public output에는 pagination metadata가 포함되지 않습니다.
+반복되는 `next-key`는 같은 page를 무한 재생하지 않도록 upstream continuation
+error로 처리합니다.
 
-## Output Contract
+## 출력 계약
 
-The command returns a bare JSON array. Items contain only normalized snake_case
-fields:
+명령은 bare JSON array를 반환합니다. Item은 정규화된 `snake_case` 필드만
+포함합니다.
 
-| Field | Source | Notes |
+| 필드 | Source | Notes |
 | --- | --- | --- |
-| `order_id` | `ord_no` | Preserved as a string, including leading zeros. |
-| `original_order_id` | `orig_ord_no` | Preserved as a string, including `0000000`. |
-| `stock_code` | `stk_cd` | Stock code. |
-| `stock_name` | `stk_nm` | Stock name. |
-| `side` | `io_tp_nm` | `buy` when `io_tp_nm` contains `매수` only, `sell` when it contains `매도` only, otherwise `unknown`. The leading `+`/`-` marker is not used for side classification. |
-| `trading_venue` | `stex_tp` | `SOR` when `stex_tp == "0"`, `KRX` when `stex_tp == "1"`, `NXT` when `stex_tp == "2"`. Unknown non-empty values are preserved as `UNKNOWN_<raw>`; blank values become `UNKNOWN`. |
-| `ordered_quantity` | `ord_qty` | Parsed as an absolute numeric quantity. |
-| `ordered_price` | `ord_pric` | Parsed as an absolute numeric price. |
-| `unfilled_quantity` | `oso_qty` | Parsed as an absolute numeric quantity. |
-| `funding_type` | `io_tp_nm` | `credit` when `io_tp_nm` contains `신용`, otherwise `cash`. |
-| `filled_quantity` | `cntr_qty` | Parsed as an absolute numeric quantity. |
-| `current_price` | `cur_prc` | Parsed as an absolute numeric price; Kiwoom `+`/`-` prefixes are markers. |
+| `order_id` | `ord_no` | 선행 zero를 포함해 문자열로 보존합니다. |
+| `original_order_id` | `orig_ord_no` | `0000000`을 포함해 문자열로 보존합니다. |
+| `stock_code` | `stk_cd` | 종목 코드입니다. |
+| `stock_name` | `stk_nm` | 종목명입니다. |
+| `side` | `io_tp_nm` | `io_tp_nm`이 `매수`만 포함하면 `buy`, `매도`만 포함하면 `sell`, 그 외는 `unknown`입니다. 앞의 `+`/`-` marker는 side 분류에 사용하지 않습니다. |
+| `trading_venue` | `stex_tp` | `stex_tp == "0"`이면 `SOR`, `stex_tp == "1"`이면 `KRX`, `stex_tp == "2"`이면 `NXT`입니다. 알 수 없는 non-empty 값은 `UNKNOWN_<raw>`로 보존하고 blank 값은 `UNKNOWN`이 됩니다. |
+| `ordered_quantity` | `ord_qty` | 절댓값 숫자 수량으로 parse합니다. |
+| `ordered_price` | `ord_pric` | 절댓값 숫자 가격으로 parse합니다. |
+| `unfilled_quantity` | `oso_qty` | 절댓값 숫자 수량으로 parse합니다. |
+| `funding_type` | `io_tp_nm` | `io_tp_nm`에 `신용`이 포함되면 `credit`, 그 외는 `cash`입니다. |
+| `filled_quantity` | `cntr_qty` | 절댓값 숫자 수량으로 parse합니다. |
+| `current_price` | `cur_prc` | 절댓값 숫자 가격으로 parse합니다. Kiwoom `+`/`-` prefix는 marker입니다. |
 
-Raw `io_tp_nm`, raw `stex_tp`, and other raw Kiwoom response fields are
-intentionally not emitted. `trading_venue` is the stable agent-facing field to
-carry the ordered venue/routing value needed by future cancel or amend commands.
-Unknown Kiwoom `stex_tp` values are preserved in the normalized field instead of
-failing the whole list, so agents can still retain order identifiers for later
-operations while making the unmapped venue obvious.
+Raw `io_tp_nm`, raw `stex_tp`, 그 외 raw Kiwoom 응답 필드는 의도적으로 출력하지
+않습니다. `trading_venue`는 향후 cancel 또는 amend 명령에 필요한 주문 venue/routing
+값을 전달하는 안정적인 agent-facing 필드입니다. 알 수 없는 Kiwoom `stex_tp` 값은
+전체 list를 실패시키는 대신 정규화된 필드에 보존하므로, agent가 나중 작업에
+필요한 주문 번호를 유지하면서 unmapped venue를 분명히 볼 수 있습니다.
 
-`side` and `funding_type` are part of the public schema so agents can consume
-stable normalized fields. Both are derived from the Kiwoom `io_tp_nm` wording.
-Unexpected or ambiguous side wording is emitted as `unknown` rather than failing
-the whole list or guessing a buy/sell direction.
+`side`와 `funding_type`은 안정적인 정규화 필드를 소비할 수 있도록 공개 schema의
+일부입니다. 둘 다 Kiwoom `io_tp_nm` wording에서 파생됩니다. 예상하지 못했거나
+모호한 side wording은 전체 list를 실패시키거나 buy/sell 방향을 추측하지 않고
+`unknown`으로 출력합니다.
 
-Example shape:
+예시 shape:
 
 ```json
 [
@@ -413,9 +413,9 @@ Example shape:
 ]
 ```
 
-## Verification Checklist
+## 검증 체크리스트
 
-Before reporting completion:
+완료를 보고하기 전에:
 
 ```sh
 gofmt -w <edited-go-files>
@@ -424,7 +424,7 @@ go vet ./...
 go build -o bin/stock ./cmd/stock
 ```
 
-Optional live smoke verification should avoid printing raw order rows:
+선택적 live smoke 검증은 raw order row를 출력하지 않아야 합니다.
 
 ```sh
 set -euo pipefail
@@ -463,10 +463,10 @@ print({"count": len(data), "schema": sorted(expected)})
 PY
 ```
 
-When the configured account has no open/unfilled orders, `count` can be `0`.
-Treat that as normal live state, not a failure.
+설정된 계좌에 미체결 주문이 없으면 `count`가 `0`일 수 있습니다. 이는 정상적인
+live state이며 실패가 아닙니다.
 
-Do not run live create/cancel smoke verification by default. Those commands can
-place or cancel real orders. Prefer unit tests and local validation-only CLI
-checks unless a live-order smoke is explicitly requested with full awareness of
-the side effects.
+기본적으로 live create/cancel smoke 검증은 실행하지 마세요. 해당 명령은 실제
+주문을 넣거나 취소할 수 있습니다. Live-order smoke를 부작용까지 명확히 인지하고
+명시적으로 요청받은 경우가 아니라면 unit test와 local validation-only CLI check를
+선호하세요.

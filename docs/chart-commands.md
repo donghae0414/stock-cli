@@ -1,14 +1,14 @@
-# Stock CLI Chart Commands
+# Stock CLI Chart 명령
 
-`stock chart day`, `stock chart week`, and `stock chart minute` return Kiwoom
-chart candles for agent consumption. They call Kiwoom chart APIs and normalize
-raw Kiwoom fields into English `snake_case` JSON.
+`stock chart day`, `stock chart week`, `stock chart minute`은 agent가 소비할 수
+있는 Kiwoom 차트 candle을 반환합니다. Kiwoom 차트 API를 호출하고, 원본 Kiwoom
+필드를 영어 `snake_case` JSON으로 정규화합니다.
 
-The commands are read-only. They do not calculate indicators, export CSV,
-lookup stock names, query multiple stocks, expose raw Kiwoom fields, or fetch
-continuation pages beyond the first Kiwoom response.
+이 명령들은 읽기 전용입니다. 지표를 계산하지 않고, CSV를 export하지 않으며,
+종목명 조회, 여러 종목 조회, 원본 Kiwoom 필드 노출, 첫 Kiwoom 응답 이후의
+continuation page 조회를 하지 않습니다.
 
-## Commands
+## 명령
 
 ```sh
 ./bin/stock chart day --stock-code 005930
@@ -18,47 +18,47 @@ continuation pages beyond the first Kiwoom response.
 ./bin/stock chart minute --stock-code 005930 --interval 1 --count 10 --to 20260618132000
 ```
 
-## Options
+## 옵션
 
-Common options:
+공통 옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--stock-code` | six digits | Required stock code. |
-| `--count` | `1..600` | Number of candles to return. Defaults to `120`. |
-| `--to` | see below | End date or time. Defaults to current local date. |
+| `--stock-code` | 6자리 숫자 | 필수 종목 코드입니다. |
+| `--count` | `1..600` | 반환할 candle 수입니다. 기본값은 `120`입니다. |
+| `--to` | 아래 설명 참고 | 종료 날짜 또는 시각입니다. 기본값은 현재 local date입니다. |
 
-Day/week `--to` accepts only `YYYYMMDD`.
+Day/week `--to`는 `YYYYMMDD`만 허용합니다.
 
-Minute `--interval` is required and accepts `1`, `3`, `5`, `10`, `15`, `30`,
-`45`, or `60`.
+Minute `--interval`은 필수이며 `1`, `3`, `5`, `10`, `15`, `30`, `45`, `60`을
+허용합니다.
 
-Minute `--to` accepts `YYYYMMDD` or `YYYYMMDDHHmmss`. Kiwoom receives only the
-date part as `base_dt`; the full user-provided value is preserved in output
-metadata.
+Minute `--to`는 `YYYYMMDD` 또는 `YYYYMMDDHHmmss`를 허용합니다. Kiwoom에는
+date 부분만 `base_dt`로 전달하고, 사용자가 제공한 전체 값은 출력 metadata에
+보존합니다.
 
 ## API Mapping
 
-All chart requests use:
+모든 chart 요청은 다음 값을 사용합니다.
 
 - Endpoint: `/api/dostk/chart`
 - `upd_stkpc_tp: "1"`
-- `stk_cd`: the user stock code with `_AL` appended for SOR routing
+- `stk_cd`: 사용자 종목 코드 뒤에 SOR routing을 위한 `_AL`을 붙인 값
 - `cont-yn: N`
 - `next-key: ""`
 
-| Command | API ID | Response list |
+| 명령 | API ID | 응답 list |
 | --- | --- | --- |
 | `stock chart day` | `ka10081` | `stk_dt_pole_chart_qry` |
 | `stock chart week` | `ka10082` | `stk_stk_pole_chart_qry` |
 | `stock chart minute` | `ka10080` | `stk_min_pole_chart_qry` |
 
-## Output
+## 출력
 
-The public output is one JSON object. `stock_code` appears once at the top
-level and each row under `candles` is a normalized candle.
+공개 출력은 JSON object 하나입니다. `stock_code`는 top level에 한 번만 나타나고,
+`candles` 아래 각 row는 정규화된 candle입니다.
 
-Day/week output:
+Day/week 출력:
 
 ```json
 {
@@ -79,7 +79,7 @@ Day/week output:
 }
 ```
 
-Minute output:
+Minute 출력:
 
 ```json
 {
@@ -100,14 +100,12 @@ Minute output:
 }
 ```
 
-Kiwoom may include leading `+` or `-` signs in numeric strings. Public price and
-trade amount fields are absolute JSON numbers. Dates and timestamps remain
-strings.
+Kiwoom은 숫자 문자열 앞에 `+` 또는 `-` sign을 포함할 수 있습니다. 공개 가격과
+거래대금 필드는 절댓값 JSON number입니다. 날짜와 timestamp는 문자열로 유지합니다.
 
-## Safe Smoke Verification
+## 안전한 Smoke 검증
 
-After building, run small-count commands after configuring credentials with
-`stock config set`:
+빌드 후 `stock config set`으로 credential을 설정한 뒤 작은 count로 실행합니다.
 
 ```sh
 ./bin/stock chart day --stock-code 005930 --count 2
@@ -115,6 +113,5 @@ After building, run small-count commands after configuring credentials with
 ./bin/stock chart minute --stock-code 005930 --interval 1 --count 2
 ```
 
-Do not print tokens or credentials. For automation, record only sanitized
-evidence such as exit status, top-level keys, candle count, and first candle
-keys.
+Token이나 credential을 출력하지 마세요. 자동화에서는 exit status, top-level key,
+candle count, 첫 candle key처럼 sanitization된 증거만 기록하세요.

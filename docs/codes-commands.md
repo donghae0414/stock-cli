@@ -1,15 +1,18 @@
-# Stock Code Lookup Commands
+# Stock Code 조회 명령
 
-`stock codes lookup` resolves Korean stock names to six-digit Kiwoom stock codes through the Kiwoom stock-info API.
+`stock codes lookup`은 한국 종목명을 Kiwoom 6자리 종목 코드로 해석합니다.
+Kiwoom 종목 정보 API를 사용합니다.
 
 ```sh
 ./bin/stock codes lookup --name 삼성전자
 ./bin/stock codes lookup --name 삼성전자 --name 하이닉스 --limit 10
 ```
 
-The command calls Kiwoom `/api/dostk/stkinfo` with api-id `ka10099`, fetches market types `0` and `10`, follows continuation headers, and returns an agent-readable JSON envelope.
+이 명령은 Kiwoom `/api/dostk/stkinfo`를 api-id `ka10099`로 호출하고,
+시장 구분 `0`과 `10`을 조회하며, continuation header를 따라간 뒤 agent가 읽기
+좋은 JSON envelope를 반환합니다.
 
-Success output is always an object:
+성공 출력은 항상 object입니다.
 
 ```json
 {
@@ -36,11 +39,16 @@ Success output is always an object:
 }
 ```
 
-`status` is one of `exact`, `single_partial`, `ambiguous`, or `not_found`. If several candidates match, agents should stop before stock-code-only work and ask which candidate is intended.
+`status`는 `exact`, `single_partial`, `ambiguous`, `not_found` 중 하나입니다.
+여러 후보가 매칭되면 agent는 종목 코드만으로 진행하는 작업을 멈추고, 어떤
+후보가 의도한 종목인지 확인해야 합니다.
 
-The command filters out names containing `ETF`, `ETN`, `선물`, or `옵션`, and keeps `거래소`, `코스닥`, `리츠`, and `인프라투자금융` markets. Candidate ranking follows exact matches first, then partial matches ordered by prefix match, name length, code length, and code.
+명령은 이름에 `ETF`, `ETN`, `선물`, `옵션`이 들어간 항목을 제외하고, `거래소`,
+`코스닥`, `리츠`, `인프라투자금융` 시장을 유지합니다. 후보 ranking은 정확 일치,
+부분 일치 순으로 적용하며, 부분 일치 안에서는 prefix match, 이름 길이, 코드
+길이, 코드 순서로 정렬합니다.
 
-Validation, config, or Kiwoom upstream errors are also emitted as JSON:
+Validation, config, Kiwoom upstream 오류도 JSON으로 출력합니다.
 
 ```json
 {
@@ -55,8 +63,8 @@ Validation, config, or Kiwoom upstream errors are also emitted as JSON:
 }
 ```
 
-`errors[].type` is one of:
+`errors[].type`은 다음 중 하나입니다.
 
-- `ValidationError`: missing or blank `--name`, invalid `--limit`, or unexpected extra arguments.
-- `ConfigError`: missing or unreadable Kiwoom credentials/config. Run `stock config set`.
-- `KiwoomClientError`: Kiwoom token, network, HTTP, response decoding, or API return-code failure.
+- `ValidationError`: `--name`이 없거나 blank인 경우, `--limit`이 유효하지 않은 경우, 예상하지 않은 추가 인자가 있는 경우.
+- `ConfigError`: Kiwoom credential/config가 없거나 읽을 수 없는 경우. `stock config set`을 실행하세요.
+- `KiwoomClientError`: Kiwoom token, network, HTTP, response decoding, API return-code 실패.

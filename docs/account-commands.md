@@ -1,60 +1,60 @@
-# Stock CLI Account Commands
+# Stock CLI Account 명령
 
-`stock accounts list` uses Kiwoom REST APIs and returns normalized account
-holdings for agent consumption. The command keeps a resource-based path and
-rejects unexpected extra arguments so callers get deterministic behavior.
+`stock accounts list`는 Kiwoom REST API를 사용하고, agent가 소비할 수 있도록
+정규화된 계좌 보유 종목을 반환합니다. 이 명령은 resource 기반 경로를 유지하고
+예상하지 않은 추가 인자를 거부하므로 호출자는 결정적인 동작을 얻습니다.
 
-## Stock CLI Command
+## Stock CLI 명령
 
-`stock-cli` provides:
+`stock-cli`는 다음을 제공합니다.
 
-| Stock command | Purpose |
+| Stock 명령 | 목적 |
 | --- | --- |
-| `stock accounts list` | Return normalized current Kiwoom account holdings. |
-| `stock accounts list --credit-detail` | Return cash holdings plus loan-date credit detail rows. |
+| `stock accounts list` | 현재 Kiwoom 계좌 보유 종목을 정규화해서 반환합니다. |
+| `stock accounts list --credit-detail` | 현금 보유 row와 대출일자별 신용 detail row를 함께 반환합니다. |
 
-Command-specific options:
+명령별 옵션:
 
-| Option | Purpose |
+| 옵션 | 목적 |
 | --- | --- |
-| `--credit-detail` | Show Kiwoom credit detail rows by loan date while preserving cash rows. |
+| `--credit-detail` | 현금 row를 유지하면서 Kiwoom 신용 detail row를 대출일자별로 표시합니다. |
 
-## Kiwoom Token Policy
+## Kiwoom Token 정책
 
-Long-lived Kiwoom credentials remain in:
+장기 Kiwoom credential은 다음 위치에 둡니다.
 
 ```text
 ~/.stock/config
 ```
 
-Issued access tokens are cached separately in:
+발급된 access token은 별도로 캐시합니다.
 
 ```text
 ~/.stock/token.json
 ```
 
-Token cache rules:
+Token 캐시 규칙:
 
-- Never store issued access tokens in `~/.stock/config`.
-- Create `~/.stock/` with `0700` permissions when supported.
-- Write `~/.stock/token.json` with `0600` permissions when supported.
-- Treat missing, malformed, unreadable, expired, or near-expiry token cache as a cache miss.
-- Refresh when the cached token expires within 1 minute.
-- Replace the cache only after a successful token issue response.
-- Remove `~/.stock/token.json` after successful `stock config set` so the next account command issues a fresh token using the newly saved config credentials.
-- Scope that removal to successful `stock config set`.
-- Never print or commit issued token values.
+- 발급된 access token을 `~/.stock/config`에 저장하지 않습니다.
+- 지원되는 환경에서는 `~/.stock/`를 `0700` 권한으로 만듭니다.
+- 지원되는 환경에서는 `~/.stock/token.json`을 `0600` 권한으로 씁니다.
+- token 캐시가 없거나, malformed 상태이거나, 읽을 수 없거나, 만료되었거나, 곧 만료되면 cache miss로 취급합니다.
+- 캐시된 token이 1분 안에 만료되면 갱신합니다.
+- token 발급 응답이 성공한 뒤에만 캐시를 교체합니다.
+- 성공한 `stock config set` 이후 `~/.stock/token.json`을 제거하여 다음 account 명령이 새로 저장된 config credential로 fresh token을 발급하게 합니다.
+- 해당 제거는 성공한 `stock config set`에만 한정합니다.
+- 발급된 token 값을 출력하거나 commit하지 않습니다.
 
 ## Kiwoom API Mapping
 
-### Token issue
+### Token 발급
 
 ```http
 POST https://api.kiwoom.com/oauth2/token
 Content-Type: application/json;charset=UTF-8
 ```
 
-Request body:
+요청 body:
 
 ```json
 {
@@ -64,19 +64,19 @@ Request body:
 }
 ```
 
-Response fields used:
+사용하는 응답 필드:
 
-| Field | Meaning |
+| 필드 | 의미 |
 | --- | --- |
-| `token` | Issued access token. |
-| `token_type` | Expected bearer token type. |
-| `expires_dt` | Token expiry in `YYYYMMDDHHMMSS` format. |
-| `return_code` | Kiwoom business result code. |
-| `return_msg` | Kiwoom business result message. |
+| `token` | 발급된 access token입니다. |
+| `token_type` | 기대하는 bearer token type입니다. |
+| `expires_dt` | `YYYYMMDDHHMMSS` 형식의 token 만료 시각입니다. |
+| `return_code` | Kiwoom business result code입니다. |
+| `return_msg` | Kiwoom business result message입니다. |
 
-### Account holdings
+### 계좌 보유 종목
 
-`stock accounts list` calls Kiwoom account profit-rate request `ka10085`.
+`stock accounts list`는 Kiwoom 계좌 수익률 요청 `ka10085`를 호출합니다.
 
 ```http
 POST https://api.kiwoom.com/api/dostk/acnt
@@ -87,7 +87,7 @@ next-key:
 api-id: ka10085
 ```
 
-Request body:
+요청 body:
 
 ```json
 {
@@ -95,31 +95,31 @@ Request body:
 }
 ```
 
-## Output Contract
+## 출력 계약
 
-The command returns a bare JSON array.
+명령은 bare JSON array를 반환합니다.
 
-Default `stock accounts list` items contain only normalized snake_case fields:
+기본 `stock accounts list` item은 정규화된 `snake_case` 필드만 포함합니다.
 
-| Field | Source | Notes |
+| 필드 | Source | Notes |
 | --- | --- | --- |
-| `stock_code` | `stk_cd` | Stock code. |
-| `stock_name` | `stk_nm` | Stock name. |
-| `current_price` | `cur_prc` | Parsed as absolute numeric price; Kiwoom `+`/`-` prefix is treated as a marker. |
-| `purchase_price` | `pur_pric` | Parsed as numeric price. |
-| `profit_rate` | computed | `(current_price - purchase_price) / purchase_price * 100`, rounded to 2 decimal places; `null` when purchase price is `0`. |
-| `purchase_amount` | `pur_amt` | Parsed numeric purchase amount. |
-| `holding_quantity` | `rmnd_qty` | Parsed numeric holding quantity. |
-| `orderable_quantity` | `clrn_alow_qty` | Parsed numeric orderable quantity. |
-| `funding_type` | `crd_tp` | `cash` when `crd_tp == "00"`, otherwise `credit`. |
+| `stock_code` | `stk_cd` | 종목 코드입니다. |
+| `stock_name` | `stk_nm` | 종목명입니다. |
+| `current_price` | `cur_prc` | 절댓값 숫자 가격으로 parse합니다. Kiwoom `+`/`-` prefix는 marker로 취급합니다. |
+| `purchase_price` | `pur_pric` | 숫자 가격으로 parse합니다. |
+| `profit_rate` | computed | `(current_price - purchase_price) / purchase_price * 100`을 소수점 둘째 자리로 반올림합니다. 매입가가 `0`이면 `null`입니다. |
+| `purchase_amount` | `pur_amt` | 숫자 매입금액으로 parse합니다. |
+| `holding_quantity` | `rmnd_qty` | 숫자 보유수량으로 parse합니다. |
+| `orderable_quantity` | `clrn_alow_qty` | 숫자 주문가능수량으로 parse합니다. |
+| `funding_type` | `crd_tp` | `crd_tp == "00"`이면 `cash`, 그 외는 `credit`입니다. |
 
-Filtering rules:
+Filtering 규칙:
 
-- Exclude rows where `rmnd_qty` is `0`.
-- Exclude rows where `stk_nm` starts with `*`.
-- Return only unstarred aggregate rows.
+- `rmnd_qty`가 `0`인 row는 제외합니다.
+- `stk_nm`이 `*`로 시작하는 row는 제외합니다.
+- 별표가 없는 aggregate row만 반환합니다.
 
-Example shape:
+예시 shape:
 
 ```json
 [
@@ -137,31 +137,30 @@ Example shape:
 ]
 ```
 
-Breaking change: account JSON no longer emits `is_credit`. Use
-`funding_type == "credit"` instead. Valid values are exactly `cash` and
-`credit`. Order commands distinguish this cash/credit axis with
-`stock orders create cash` and `stock orders create credit` subcommands;
-`order_type` is reserved for MARKET/LIMIT order style. See
-`docs/order-commands.md` for the live order command contract.
+Breaking change: account JSON은 더 이상 `is_credit`을 내보내지 않습니다. 대신
+`funding_type == "credit"`을 사용하세요. 유효한 값은 정확히 `cash`와
+`credit`입니다. 주문 명령은 `stock orders create cash`와
+`stock orders create credit` subcommand로 이 cash/credit 축을 구분합니다.
+`order_type`은 MARKET/LIMIT 주문 방식에 예약되어 있습니다. Live order 명령
+계약은 order command 문서를 확인하세요.
 
-### Credit detail output
+### Credit detail 출력
 
-`stock accounts list --credit-detail` returns the default fields plus one
-additional field:
+`stock accounts list --credit-detail`은 기본 필드에 필드 하나를 추가해 반환합니다.
 
-| Field | Source | Notes |
+| 필드 | Source | Notes |
 | --- | --- | --- |
-| `loan_date` | `loan_dt` | Kiwoom loan date for credit detail rows; empty string for cash rows. |
+| `loan_date` | `loan_dt` | 신용 detail row의 Kiwoom 대출일자입니다. 현금 row에서는 빈 문자열입니다. |
 
-Filtering rules:
+Filtering 규칙:
 
-- Exclude rows where `rmnd_qty` is `0`.
-- Include every cash row where `crd_tp == "00"` and set `loan_date` to an empty string.
-- Include credit detail rows where `stk_nm` starts with `*` and `crd_tp != "00"`.
-- Remove the leading `*` from displayed credit detail `stock_name`.
-- Exclude unstarred credit aggregate rows where `crd_tp != "00"`.
+- `rmnd_qty`가 `0`인 row는 제외합니다.
+- `crd_tp == "00"`인 모든 현금 row를 포함하고 `loan_date`를 빈 문자열로 설정합니다.
+- `stk_nm`이 `*`로 시작하고 `crd_tp != "00"`인 신용 detail row를 포함합니다.
+- 표시되는 신용 detail `stock_name`에서는 앞의 `*`를 제거합니다.
+- 별표가 없고 `crd_tp != "00"`인 신용 aggregate row는 제외합니다.
 
-Example shape:
+예시 shape:
 
 ```json
 [
@@ -180,9 +179,9 @@ Example shape:
 ]
 ```
 
-## Verification Checklist
+## 검증 체크리스트
 
-Before reporting completion:
+완료를 보고하기 전에:
 
 ```sh
 gofmt -w <edited-go-files>
@@ -190,7 +189,7 @@ go test ./...
 go build -o bin/stock ./cmd/stock
 ```
 
-Final direct CLI smoke verification should avoid leaving raw holdings on disk:
+최종 직접 CLI smoke 검증은 raw holdings를 disk에 남기지 않아야 합니다.
 
 ```sh
 set -euo pipefail
@@ -224,10 +223,10 @@ print({"count": len(data), "schema": sorted(expected)})
 PY
 ```
 
-Report only the summarized `count` and `schema` unless raw portfolio output is
-explicitly requested.
+Raw portfolio output을 명시적으로 요청받지 않았다면 요약된 `count`와 `schema`만
+보고하세요.
 
-Credit-detail smoke verification should also avoid printing raw holdings:
+Credit-detail smoke 검증도 raw holdings를 출력하지 않아야 합니다.
 
 ```sh
 set -euo pipefail
@@ -277,7 +276,6 @@ print({
 PY
 ```
 
-When the configured account currently has no credit rows, the final
-`credit_detail_rows_with_loan_date` count can be `0`; treat that as live-state
-inconclusive after confirming the raw `ka10085` response has no
-`crd_tp != "00"` rows.
+설정된 계좌에 현재 신용 row가 없으면 최종 `credit_detail_rows_with_loan_date`
+count가 `0`일 수 있습니다. Raw `ka10085` 응답에 `crd_tp != "00"` row가 없음을
+확인했다면 이는 live-state inconclusive로 취급하세요.

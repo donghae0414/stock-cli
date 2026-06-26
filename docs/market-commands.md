@@ -1,24 +1,24 @@
-# Stock CLI Market Commands
+# Stock CLI Market 명령
 
-`stock market` contains local market-rule helpers for agent workflows. These
-commands do not call Kiwoom, do not load credentials, and do not touch the token
-cache.
+`stock market`은 agent workflow에서 쓰는 로컬 시장 규칙 helper를 담습니다.
+이 명령들은 Kiwoom을 호출하지 않고, credential을 로드하지 않으며, token 캐시를
+건드리지 않습니다.
 
-## Command
+## 명령
 
 ```sh
 ./bin/stock market tick --price 353333
 ```
 
-Options:
+옵션:
 
-| Option | Values | Purpose |
+| 옵션 | 값 | 목적 |
 | --- | --- | --- |
-| `--price` | positive whole-won integer | Price to check against the general Korean stock tick-size table. |
+| `--price` | 양의 정수 원화 가격 | 일반 국내주식 호가 단위 표에 맞춰 확인할 가격입니다. |
 
-## Output Contract
+## 출력 계약
 
-The command returns one normalized JSON object:
+명령은 정규화된 JSON object 하나를 반환합니다.
 
 ```json
 {
@@ -30,38 +30,37 @@ The command returns one normalized JSON object:
 }
 ```
 
-Fields:
+필드:
 
-| Field | Notes |
+| 필드 | 설명 |
 | --- | --- |
-| `price` | Input price as a JSON number. |
-| `tick_size` | Tick size selected for the input price band. |
-| `lower_price` | Greatest valid tick price less than or equal to `price`. |
-| `upper_price` | Smallest valid tick price greater than or equal to `price`. |
-| `is_valid_tick` | `true` when `price` already matches the tick grid. |
+| `price` | 입력 가격을 JSON number로 출력합니다. |
+| `tick_size` | 입력 가격 구간에 선택된 호가 단위입니다. |
+| `lower_price` | `price` 이하에서 가장 큰 유효 호가입니다. |
+| `upper_price` | `price` 이상에서 가장 작은 유효 호가입니다. |
+| `is_valid_tick` | `price`가 이미 호가 grid에 맞으면 `true`입니다. |
 
-## General Stock Tick Table
+## 일반 주식 호가 단위 표
 
-| Price range | Tick size |
+| 가격 구간 | 호가 단위 |
 | --- | ---: |
-| Less than 2,000 | 1 |
-| 2,000 through 4,999 | 5 |
-| 5,000 through 19,999 | 10 |
-| 20,000 through 49,999 | 50 |
-| 50,000 through 199,999 | 100 |
-| 200,000 through 499,999 | 500 |
-| 500,000 or more | 1,000 |
+| 2,000 미만 | 1 |
+| 2,000 이상 4,999 이하 | 5 |
+| 5,000 이상 19,999 이하 | 10 |
+| 20,000 이상 49,999 이하 | 50 |
+| 50,000 이상 199,999 이하 | 100 |
+| 200,000 이상 499,999 이하 | 500 |
+| 500,000 이상 | 1,000 |
 
-## First-Pass Boundaries
+## 1차 범위
 
-This helper is intentionally offline. It does not call Kiwoom `ka10004`, does
-not fetch the current orderbook, and does not modify `stock orders create`
-validation. ETF, ETN, ELW, preferred-stock, product-type, and venue-specific
-exceptions are also out of scope for this first pass.
+이 helper는 의도적으로 오프라인입니다. Kiwoom `ka10004`를 호출하지 않고, 현재
+호가창을 가져오지 않으며, `stock orders create` validation을 변경하지 않습니다.
+ETF, ETN, ELW, 우선주, 상품 유형, 거래소별 예외도 이 1차 범위에서는 제외합니다.
 
-## Verification Checklist
+## 검증 체크리스트
 
-Before reporting completion:
+완료를 보고하기 전에:
 
 ```sh
 gofmt -w pkg/cmd/market.go pkg/cmd/market_test.go pkg/cmd/cmd.go
