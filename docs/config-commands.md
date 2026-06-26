@@ -1,32 +1,7 @@
 # Stock CLI Initial Configuration Commands
 
-`stock-cli` mirrors the initial configuration command shape used by
-`upbit-cli`, with Kiwoom-specific credential names. Kiwoom REST API host is
-fixed and is not user configuration.
-
-## Upbit CLI Reference
-
-Confirmed Upbit initial configuration commands:
-
-| Upbit command | Purpose |
-| --- | --- |
-| `upbit config set` | Set API credentials interactively. |
-| `upbit config show` | Show current credentials in masked form and show their source. |
-| `upbit config path` | Print the config file path. |
-
-Reference source:
-
-- `/Users/dongwuk/apps/upbit-cli/pkg/cmd/config.go`
-- `/Users/dongwuk/apps/upbit-cli/docs/commands.md`
-
-Upbit credential storage behavior:
-
-- Credential file: `~/.upbit/config`
-- File format: TOML
-- Section: `[default]`
-- Stored keys: `access_key`, `secret_key`
-- Directory permission: `0700`
-- File permission: `0600`
+`stock config` is the initial configuration surface for Kiwoom-specific
+credentials. Kiwoom REST API host is fixed and is not user configuration.
 
 ## Stock CLI Commands
 
@@ -50,7 +25,7 @@ Store Kiwoom credentials in:
 ~/.stock/config
 ```
 
-Use TOML and mirror the Upbit style:
+Use TOML with one Kiwoom credential section:
 
 ```toml
 [kiwoom]
@@ -64,8 +39,8 @@ Credential resolution uses only the config file:
 2. Missing credential message when the config file does not provide credentials.
 
 Create `~/.stock/` with `0700` permissions and write `~/.stock/config` with
-`0600` permissions. `stock config set` is intentionally TTY-only, matching
-`upbit config set`. It prompts for App Key and Secret Key only.
+`0600` permissions. `stock config set` is intentionally TTY-only. It prompts
+for App Key and Secret Key only.
 
 After `stock config set` successfully saves credentials, it removes the default
 issued-token cache at `~/.stock/token.json`. A missing token cache is a harmless

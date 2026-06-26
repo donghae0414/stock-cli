@@ -146,17 +146,31 @@ func isDigitsOnly(value string) bool {
 }
 
 type orderListItem struct {
-	OrderID          string      `json:"order_id"`
-	OriginalOrderID  string      `json:"original_order_id"`
-	StockCode        string      `json:"stock_code"`
-	StockName        string      `json:"stock_name"`
-	TradingVenue     string      `json:"trading_venue"`
-	OrderedQuantity  int64       `json:"ordered_quantity"`
-	OrderedPrice     int64       `json:"ordered_price"`
-	UnfilledQuantity int64       `json:"unfilled_quantity"`
-	FundingType      FundingType `json:"funding_type"`
-	FilledQuantity   int64       `json:"filled_quantity"`
-	CurrentPrice     int64       `json:"current_price"`
+	OrderID          string        `json:"order_id"`
+	OriginalOrderID  string        `json:"original_order_id"`
+	StockCode        string        `json:"stock_code"`
+	StockName        string        `json:"stock_name"`
+	Side             orderListSide `json:"side"`
+	TradingVenue     string        `json:"trading_venue"`
+	OrderedQuantity  int64         `json:"ordered_quantity"`
+	OrderedPrice     int64         `json:"ordered_price"`
+	UnfilledQuantity int64         `json:"unfilled_quantity"`
+	FundingType      FundingType   `json:"funding_type"`
+	FilledQuantity   int64         `json:"filled_quantity"`
+	CurrentPrice     int64         `json:"current_price"`
+}
+
+type orderListSide string
+
+const (
+	orderListSideBuy     orderListSide = "buy"
+	orderListSideSell    orderListSide = "sell"
+	orderListSideUnknown orderListSide = "unknown"
+)
+
+type orderKindClassification struct {
+	Side        orderListSide
+	FundingType FundingType
 }
 
 func normalizeOrderList(rows []kiwoom.OrderListRow) ([]orderListItem, error) {
@@ -193,17 +207,19 @@ func buildOrderListItem(row kiwoom.OrderListRow) (orderListItem, error) {
 	if err != nil {
 		return orderListItem{}, fmt.Errorf("invalid cur_prc for order %s: %w", row.OrderID, err)
 	}
+	classification := classifyKiwoomOrderKind(row.OrderKind)
 
 	return orderListItem{
 		OrderID:          row.OrderID,
 		OriginalOrderID:  row.OriginalOrderID,
 		StockCode:        row.StockCode,
 		StockName:        row.StockName,
+		Side:             classification.Side,
 		TradingVenue:     tradingVenue,
 		OrderedQuantity:  orderedQuantity,
 		OrderedPrice:     orderedPrice,
 		UnfilledQuantity: unfilledQuantity,
-		FundingType:      provisionalFundingTypeFromKiwoomOrderKind(row.OrderKind),
+		FundingType:      classification.FundingType,
 		FilledQuantity:   filledQuantity,
 		CurrentPrice:     currentPrice,
 	}, nil
@@ -225,10 +241,25 @@ func tradingVenueFromKiwoomExchangeType(exchangeType string) string {
 	}
 }
 
-func provisionalFundingTypeFromKiwoomOrderKind(orderKind string) FundingType {
-	// Kiwoom live rows were unavailable when this was added; docs mark this heuristic provisional.
-	if strings.Contains(orderKind, "신용") {
-		return FundingTypeCredit
+func classifyKiwoomOrderKind(orderKind string) orderKindClassification {
+	hasBuy := strings.Contains(orderKind, "매수")
+	hasSell := strings.Contains(orderKind, "매도")
+	side := orderListSideUnknown
+	if hasBuy != hasSell {
+		if hasBuy {
+			side = orderListSideBuy
+		} else {
+			side = orderListSideSell
+		}
 	}
-	return FundingTypeCash
+
+	fundingType := FundingTypeCash
+	if strings.Contains(orderKind, "신용") {
+		fundingType = FundingTypeCredit
+	}
+
+	return orderKindClassification{
+		Side:        side,
+		FundingType: fundingType,
+	}
 }

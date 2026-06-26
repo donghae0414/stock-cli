@@ -129,8 +129,10 @@ func TestNormalizeOrderListJSONSchema(t *testing.T) {
 	assert.Equal(t, "0000069", orders[0].OrderID)
 	assert.Equal(t, "0000000", orders[0].OriginalOrderID)
 	assert.Equal(t, "SOR", orders[0].TradingVenue)
+	assert.Equal(t, orderListSideBuy, orders[0].Side)
 	assert.Equal(t, FundingTypeCash, orders[0].FundingType)
 	assert.Equal(t, "KRX", orders[1].TradingVenue)
+	assert.Equal(t, orderListSideBuy, orders[1].Side)
 	assert.Equal(t, FundingTypeCredit, orders[1].FundingType)
 	assert.Equal(t, int64(74100), orders[1].OrderedPrice)
 	assert.Equal(t, int64(74100), orders[1].CurrentPrice)
@@ -145,6 +147,7 @@ func TestNormalizeOrderListJSONSchema(t *testing.T) {
 		"original_order_id": {},
 		"stock_code":        {},
 		"stock_name":        {},
+		"side":              {},
 		"trading_venue":     {},
 		"ordered_quantity":  {},
 		"ordered_price":     {},
@@ -157,6 +160,7 @@ func TestNormalizeOrderListJSONSchema(t *testing.T) {
 		assert.Equal(t, expected, keySet(row))
 		assert.IsType(t, "", row["order_id"])
 		assert.IsType(t, "", row["original_order_id"])
+		assert.IsType(t, "", row["side"])
 		assert.IsType(t, "", row["trading_venue"])
 		assert.IsType(t, "", row["funding_type"])
 		assert.NotContains(t, row, "stex_tp")
@@ -200,6 +204,32 @@ func TestBuildOrderListItemPreservesUnknownExchangeType(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "UNKNOWN_9", order.TradingVenue)
+}
+
+func TestClassifyKiwoomOrderKindSide(t *testing.T) {
+	tests := []struct {
+		name      string
+		orderKind string
+		want      orderListSide
+	}{
+		{name: "buy marker", orderKind: "+매수", want: orderListSideBuy},
+		{name: "buy word", orderKind: "매수", want: orderListSideBuy},
+		{name: "credit buy", orderKind: "+매수신용", want: orderListSideBuy},
+		{name: "whitespace buy", orderKind: "  +매수신용  ", want: orderListSideBuy},
+		{name: "sell marker", orderKind: "-매도", want: orderListSideSell},
+		{name: "sell word", orderKind: "매도", want: orderListSideSell},
+		{name: "credit sell", orderKind: "-매도신용", want: orderListSideSell},
+		{name: "whitespace sell", orderKind: "  -매도신용  ", want: orderListSideSell},
+		{name: "empty", orderKind: "", want: orderListSideUnknown},
+		{name: "unrecognized", orderKind: "정정", want: orderListSideUnknown},
+		{name: "ambiguous", orderKind: "매수매도", want: orderListSideUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, classifyKiwoomOrderKind(tt.orderKind).Side)
+		})
+	}
 }
 
 func TestOrdersListRejectsUnexpectedArgs(t *testing.T) {

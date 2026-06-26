@@ -371,11 +371,12 @@ fields:
 | `original_order_id` | `orig_ord_no` | Preserved as a string, including `0000000`. |
 | `stock_code` | `stk_cd` | Stock code. |
 | `stock_name` | `stk_nm` | Stock name. |
+| `side` | `io_tp_nm` | `buy` when `io_tp_nm` contains `매수` only, `sell` when it contains `매도` only, otherwise `unknown`. The leading `+`/`-` marker is not used for side classification. |
 | `trading_venue` | `stex_tp` | `SOR` when `stex_tp == "0"`, `KRX` when `stex_tp == "1"`, `NXT` when `stex_tp == "2"`. Unknown non-empty values are preserved as `UNKNOWN_<raw>`; blank values become `UNKNOWN`. |
 | `ordered_quantity` | `ord_qty` | Parsed as an absolute numeric quantity. |
 | `ordered_price` | `ord_pric` | Parsed as an absolute numeric price. |
 | `unfilled_quantity` | `oso_qty` | Parsed as an absolute numeric quantity. |
-| `funding_type` | `io_tp_nm` | `credit` when `io_tp_nm` contains `신용`, otherwise `cash`. This heuristic is provisional until live non-empty order rows are confirmed. |
+| `funding_type` | `io_tp_nm` | `credit` when `io_tp_nm` contains `신용`, otherwise `cash`. |
 | `filled_quantity` | `cntr_qty` | Parsed as an absolute numeric quantity. |
 | `current_price` | `cur_prc` | Parsed as an absolute numeric price; Kiwoom `+`/`-` prefixes are markers. |
 
@@ -386,11 +387,10 @@ Unknown Kiwoom `stex_tp` values are preserved in the normalized field instead of
 failing the whole list, so agents can still retain order identifiers for later
 operations while making the unmapped venue obvious.
 
-`funding_type` is part of the public schema so agents can consume one stable
-field, but its current cash/credit classification is provisional. Treat the
-field as a normalized best-effort value until a live non-empty order row confirms
-the Kiwoom `io_tp_nm` wording. When live rows become available, add a regression
-fixture for the observed `io_tp_nm` values and keep the JSON field name stable.
+`side` and `funding_type` are part of the public schema so agents can consume
+stable normalized fields. Both are derived from the Kiwoom `io_tp_nm` wording.
+Unexpected or ambiguous side wording is emitted as `unknown` rather than failing
+the whole list or guessing a buy/sell direction.
 
 Example shape:
 
@@ -401,6 +401,7 @@ Example shape:
     "original_order_id": "0000000",
     "stock_code": "005930",
     "stock_name": "삼성전자",
+    "side": "buy",
     "trading_venue": "SOR",
     "ordered_quantity": 1,
     "ordered_price": 0,
@@ -441,6 +442,7 @@ expected = {
     "original_order_id",
     "stock_code",
     "stock_name",
+    "side",
     "trading_venue",
     "ordered_quantity",
     "ordered_price",
@@ -455,6 +457,7 @@ assert isinstance(data, list)
 assert all(set(row) == expected for row in data)
 assert all(isinstance(row["order_id"], str) for row in data)
 assert all(isinstance(row["original_order_id"], str) for row in data)
+assert all(row["side"] in {"buy", "sell", "unknown"} for row in data)
 assert all(row["trading_venue"] in {"SOR", "KRX", "NXT", "UNKNOWN"} or row["trading_venue"].startswith("UNKNOWN_") for row in data)
 print({"count": len(data), "schema": sorted(expected)})
 PY

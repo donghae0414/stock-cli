@@ -1,26 +1,8 @@
 # Stock CLI Account Commands
 
-`stock-cli` mirrors the `upbit accounts list` command shape while using Kiwoom
-REST APIs and returning normalized account holdings for agent consumption.
-
-## Upbit CLI Reference
-
-Confirmed Upbit account command:
-
-| Upbit command | Purpose |
-| --- | --- |
-| `upbit accounts list` | Get account balances. |
-
-Reference source:
-
-- `/Users/dongwuk/apps/upbit-cli/pkg/cmd/account.go`
-- `/Users/dongwuk/apps/upbit-cli/docs/commands.md`
-
-Important Upbit command-shape facts:
-
-- Command path is `accounts list`.
-- The command has no command-specific options.
-- Unexpected extra arguments are rejected.
+`stock accounts list` uses Kiwoom REST APIs and returns normalized account
+holdings for agent consumption. The command keeps a resource-based path and
+rejects unexpected extra arguments so callers get deterministic behavior.
 
 ## Stock CLI Command
 
