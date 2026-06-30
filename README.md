@@ -1,7 +1,7 @@
 # stock-cli
 
-Kiwoom REST API를 사용하기 위한 Go 기반 국내 주식 CLI입니다. 이 프로젝트는
-[`upbit-official/upbit-cli`](https://github.com/upbit-official/upbit-cli)의
+Kiwoom REST API를 사용하기 위한 Go 기반 국내 주식 CLI입니다.  
+이 프로젝트는 [`upbit-official/upbit-cli`](https://github.com/upbit-official/upbit-cli)의  
 resource-based CLI 흐름을 참고해 Kiwoom 증권 API용으로 만든 도구입니다.
 
 현재 지원 범위는 설정, 계좌 보유 종목 조회, 종목코드 조회, 시장 호가 단위 계산, 차트 조회, 주문 조회, 현금/신용 주문 생성 및 취소입니다.
