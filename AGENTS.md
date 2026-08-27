@@ -12,7 +12,7 @@
 - Never run live order create or cancel commands against a real account during verification unless the user explicitly requests that exact action.
 - Keep command output stable, machine-readable, and documented; update the relevant `docs/*-commands.md` file when changing CLI behavior or JSON schemas.
 - Keep tests isolated from the user's real `~/.stock` data, credentials, token cache, and Kiwoom network state; use temp homes, fixtures, and `httptest` where possible.
-- Do not commit `.env`, `.omx/`, `.gjc/`, unrelated `.agents/` content outside `.agents/skills/stock/**`, local `.stock/` data, generated binaries, package tarballs, coverage files, or `npm/bin/` build outputs.
+- Do not commit `.env`, `.omx/`, `.gjc/`, unrelated `.agents/` content outside `.agents/skills/kiwoom-domestic-stock/**`, local `.stock/` data, generated binaries, package tarballs, coverage files, or `npm/bin/` build outputs.
 
 ## Verification
 

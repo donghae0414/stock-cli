@@ -8,6 +8,13 @@ immediately, so the confirmation protocol in `SKILL.md` is mandatory.
 The confirmation gate is enforced by the agent workflow, not by the `stock` binary. Do not tell the
 user that direct CLI invocation is protected unless CLI-side confirmation has been implemented.
 
+## Resolve Stock Names Before Code-Only Commands
+
+If the user supplies a name instead of a six-digit code, load `codes.md` and use `stock codes lookup`
+when credentials and scope allow. Continue automatically only for one `exact` candidate. Ask the
+user to choose for `single_partial` or `ambiguous`; stop on `not_found` or errors. Never use a partial
+match to prepare a live order.
+
 ## List Open Orders
 
 Read-only:
@@ -181,6 +188,18 @@ Risk summary:
 - Quantity: 1
 - Price behavior: per-share limit price 74100
 - Trading venue: SOR
+
+For a cancel command, show the exact cancel command and use cancel-specific fields:
+
+- Funding type: cash or credit
+- Stock code and known name
+- Original order ID
+- Cancel quantity, or all remaining when `--quantity` is omitted
+- Trading venue
+
+Include the original side and remaining quantity only when known from `orders list` or other
+open-order evidence. Cancel commands do not accept side, order type, price, loan selection, or loan
+date, so do not present those as cancel command inputs.
 
 Run the command only if the next user message is a single-word confirmation:
 

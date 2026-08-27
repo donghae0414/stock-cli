@@ -1,7 +1,8 @@
 # Output and Privacy
 
-Stock CLI commands emit JSON on success. Parse JSON when possible and summarize only the fields the
-user needs.
+Data commands such as accounts, codes, orders, charts, and `market tick` emit JSON on success.
+`config set`, `config show`, and `config path` emit text. Parse JSON only for JSON-producing commands
+and summarize only the fields the user needs.
 
 ## Privacy Rules
 
@@ -44,4 +45,3 @@ Cancel output contains a new `order_id`, the `base_original_order_id`, and `canc
 
 Use `stock orders list` after a live order only when the user asks or when it is necessary to answer
 status questions.
-

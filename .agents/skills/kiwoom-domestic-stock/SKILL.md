@@ -1,18 +1,18 @@
 ---
 name: kiwoom-domestic-stock
 description: >
-  Use stock CLI for Kiwoom domestic Korean stock workflows: account holdings, open orders, charts,
-  tick-size checks, and live cash/credit stock order creation or cancellation.
-  키움증권 stock CLI로 국내 주식, 한국 주식, 보유종목, 주문 조회, 차트, 호가 단위,
-  현금/신용 매수·매도·취소를 처리합니다.
-  Trigger this skill whenever the user mentions stock-cli, stock command, Kiwoom, 키움,
-  키움증권, 국내 주식, 국내주식, 한국 주식, 주식, 보유종목, 미체결, 주문, 매수,
-  매도, 취소, 호가 단위, or asks for Korean stock trading/account work, unless the user
-  clearly names a different market or domain such as 미국주식, 해외주식, crypto, or Upbit.
+  Operate the stock CLI for Kiwoom domestic Korean equities: resolve stock names and codes, inspect
+  holdings or open orders, query charts, check tick sizes, and prepare or execute cash/credit orders.
+  키움증권 stock CLI로 국내 주식 종목코드 조회, 보유종목, 미체결, 차트, 호가 단위와
+  현금/신용 주문 업무를 처리합니다. Use this skill when the user explicitly mentions stock-cli,
+  stock command, Kiwoom, 키움, or 키움증권, or clearly asks to operate a Korean domestic-equity
+  account/trading workflow. Do not use it for generic shopping orders or cancellations, general
+  investing discussion, overseas/US stocks, crypto, or stock-cli repository development unless the
+  request is to operate the CLI itself.
 metadata:
   version: v0.1.0
   author: stock-cli
-license: Apache-2.0
+license: MIT
 ---
 
 # Kiwoom Domestic Stock Skill
@@ -29,51 +29,20 @@ Detect the user's language and respond accordingly:
 
 Load `references/glossary.md` when translating command names, trading terms, or JSON fields.
 
-## Setup
+## Setup and Authentication
 
 If `stock` is not installed or credentials are not configured, load `references/setup.md` and follow
-the steps there.
-
-Check if the installed CLI is available:
+the steps there. Use the installed `stock` binary and start with:
 
 ```bash
 stock --version
-```
-
-Configure credentials via the CLI:
-
-```bash
-stock config set
-```
-
-Then verify the masked credential source and run a read-only command:
-
-```bash
-stock config show
-stock market tick --price 353333
-```
-
-## Binary Selection
-
-Use the installed `stock` binary:
-
-```bash
 stock --help
 ```
 
-If it is not available, load `references/setup.md`.
-
-## Authentication
-
-Private Kiwoom endpoints require credentials. Configure with:
-
-```bash
-stock config set
-```
-
-Credentials are stored in `~/.stock/config`. Issued access tokens are cached separately in
-`~/.stock/token.json`. Never print, summarize, save, or commit real Kiwoom credentials or issued
-tokens. Load `references/setup.md` for setup, credential priority, and token-cache policy.
+Private Kiwoom endpoints require credentials configured by `stock config set`. Long-lived credentials
+live in `~/.stock/config`; issued access tokens are cached separately in `~/.stock/token.json`. Never
+print, summarize, save, or commit their values. Use `stock config show` only for masked configuration
+evidence. `stock market tick` is local-only and does not load credentials.
 
 Private commands include `accounts list`, `codes lookup`, `orders list`, `orders create`,
 `orders cancel`, and `chart` commands. `market tick` is local-only and does not use credentials.
@@ -102,8 +71,12 @@ Mandatory confirmation protocol:
 
 1. Build the exact command, but do not execute it.
 2. Show the exact command in a fenced `bash` block.
-3. Show a concise risk summary containing side, funding type, stock code, order type, quantity,
-   price behavior, trading venue, and any credit loan selection or loan date.
+3. Show the matching risk summary:
+   - For create: side, funding type, stock code and known name, order type, quantity, price behavior,
+     trading venue, and any credit loan selection or loan date.
+   - For cancel: funding type, stock code and known name, original order ID, requested cancel
+     quantity or all remaining, and trading venue. Include the original order side and remaining
+     quantity only when known from open-order evidence; do not invent them.
 4. Ask the user to type exactly one word: `CONFIRM` (case-insensitive) or `확인`.
 5. Execute the command only after the latest user message is a single token equal to `CONFIRM`
    ignoring ASCII case, or exactly `확인`.
@@ -130,6 +103,7 @@ Load only the reference needed for the user's task:
 | Task | Reference |
 | --- | --- |
 | Install with npm, configure credentials, verify token/cache policy | `references/setup.md` |
+| Resolve a Korean stock name to a six-digit code and handle candidates | `references/codes.md` |
 | Holdings, available quantity, cash/credit detail | `references/accounts.md` |
 | Open order list, buy, sell, cancel, cash vs credit order fields | `references/orders.md` |
 | Day/week/minute Kiwoom chart queries | `references/charts.md` |
@@ -138,6 +112,14 @@ Load only the reference needed for the user's task:
 | Korean/English terms and JSON field meanings | `references/glossary.md` |
 
 ## Common Workflow
+
+When the user supplies a stock name but the command requires a six-digit code:
+
+1. Load `references/codes.md` and run `stock codes lookup --name <name>` when credentials and the
+   user's scope allow a private lookup.
+2. Continue automatically only when that query has `status: "exact"` and exactly one candidate.
+3. Ask the user to choose a candidate for `single_partial` or `ambiguous`. Stop on `not_found` or any
+   error. Never infer a code for a live workflow from a partial match.
 
 For read-only portfolio or market analysis:
 
@@ -160,6 +142,7 @@ Before preparing a live buy or sell for an unfamiliar stock, prefer these read-o
 credentials and task scope allow:
 
 ```bash
+stock codes lookup --name <stock-name>
 stock accounts list
 stock orders list --stock-code <six-digit-stock-code>
 stock market tick --price <candidate-price>

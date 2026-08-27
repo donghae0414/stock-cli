@@ -30,11 +30,10 @@ If `stock` is not found after installation, the user may need to update their PA
 
 - macOS/Linux:
   ```bash
-  export PATH="$(npm bin -g):$PATH"
+  export PATH="$(npm prefix -g)/bin:$PATH"
   ```
   Add it to `~/.zshrc` or `~/.bashrc` to persist.
-- Windows: Restart the terminal or check `npm config get prefix` and add the `bin` subdirectory to
-  the system PATH.
+- Windows: Restart the terminal or add the directory from `npm prefix -g` to the system PATH.
 
 ## Step 3 - Get Kiwoom API Credentials
 
