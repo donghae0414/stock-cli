@@ -1,7 +1,11 @@
 .env
 .gjc/
 .omx/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/stock/
+!.agents/skills/stock/**
 skills-lock.json
 .DS_Store
 bin/
