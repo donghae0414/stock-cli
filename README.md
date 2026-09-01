@@ -1,14 +1,24 @@
 # stock-cli
 
-Kiwoom REST API를 사용하기 위한 Go 기반 국내 주식 CLI입니다.  
-이 프로젝트는 [`upbit-official/upbit-cli`](https://github.com/upbit-official/upbit-cli)의  
-resource-based CLI 흐름을 참고해 Kiwoom 증권 API용으로 만든 도구입니다.
+이 프로젝트는 사용자 요청을 주식 작업으로 안내하는 Agent Skill과 Kiwoom REST API를 실행하는 `stock` CLI, 두 부분으로 구성됩니다.
 
-현재 지원 범위는 설정, 계좌 보유 종목 조회, 종목코드 조회, 시장 호가 단위 계산, 차트 조회, 주문 조회, 현금/신용 주문 생성 및 취소입니다.
+## Agent Skill
 
-## Installation
+Agent Skill 원본은 [kiwoom-domestic-stock](https://github.com/donghae0414/stock-cli/tree/main/.agents/skills/kiwoom-domestic-stock)에서 확인할 수 있습니다. 종목명·종목코드 조회, 보유종목 및 미체결 주문 조회, 차트 조회, 호가 단위 계산, 현금/신용 주문 준비 및 실행 흐름을 지원합니다.
 
-### npm package
+사용 전 `stock` CLI를 설치하고 `stock --version`, `stock --help`로 동작을 확인해야 합니다. npm은 CLI만 설치하며 Agent Skill을 설치하거나 로드하는 별도 Agent 플랫폼 명령은 이 저장소에서 정의하지 않습니다.
+
+종목명 조회는 정확히 하나의 `exact` 후보일 때만 자동으로 진행합니다. `single_partial` 또는 `ambiguous` 결과는 후보를 보여주고 선택을 요청하며, `not_found`나 오류에서는 중단합니다.
+
+주문 생성·취소 명령은 CLI에서 Kiwoom 요청을 즉시 전송합니다. CLI 바이너리 자체에는 dry-run이나 내장 확인 프롬프트, 잔고·보유종목·담보·호가·가격 제한 검사가 없습니다. Agent Skill의 실주문 확인 절차에서는 최종 명령과 위험 요약을 먼저 보여준 뒤, 새 메시지가 대소문자를 구분하지 않는 단일 토큰 `CONFIRM` 또는 정확히 `확인`일 때만 실행합니다.
+
+CLI는 장기 credential을 `~/.stock/config`에 저장하고, 발급된 access token을 `~/.stock/token.json`에 별도로 cache합니다. Agent는 이 값들을 출력·요약하지 않으며 문서·로그·commit에 기록하지 않습니다. 설정 확인에는 마스킹된 출력만 사용합니다.
+
+## stock CLI
+
+### Installation
+
+#### npm package
 
 npm 배포 후에는 package manager로 설치할 수 있습니다.
 
@@ -20,7 +30,7 @@ stock --help
 Node.js 18 이상이 필요합니다. npm package는 플랫폼별 `stock` binary를 포함하고,
 설치 후 `stock` 명령을 제공합니다.
 
-### Go source build
+#### Go source build
 
 소스에서 바로 빌드하려면 Go toolchain이 필요합니다.
 
@@ -35,7 +45,7 @@ go build -o bin/stock ./cmd/stock
 아래 예시는 설치된 binary를 `stock`으로 표기합니다. 소스 빌드만 사용한다면
 `stock` 대신 `./bin/stock`을 사용하면 됩니다.
 
-## Quick Start
+### Quick Start
 
 1. Kiwoom REST API credential을 저장합니다.
 
@@ -62,7 +72,7 @@ stock accounts list
 명령은 Kiwoom credential이 필요합니다. `stock market tick`은 로컬 계산만 수행하며
 credential이나 token cache를 읽지 않습니다.
 
-## Credential and Token Safety
+### Credential and Token Safety
 
 `stock config set`은 Kiwoom App Key와 Secret Key를 `~/.stock/config`에 저장합니다.
 설정 디렉토리는 `0700`, 설정 파일은 `0600` 권한으로 보정됩니다.
@@ -74,7 +84,7 @@ credential이나 token cache를 읽지 않습니다.
 자세한 token 발급/캐시 정책은 [docs/config-commands.md](docs/config-commands.md)와
 [docs/account-commands.md](docs/account-commands.md)를 참고하세요.
 
-## Command Shape
+### Command Shape
 
 ```sh
 stock [resource] <command> [options]
@@ -98,11 +108,11 @@ Top-level command groups:
 | `chart` | Read normalized Kiwoom chart candles. |
 | `orders` | Read, create, and cancel Kiwoom orders. |
 
-## Config Commands
+### Config Commands
 
 `stock config` stores and displays Kiwoom credential configuration.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
@@ -110,7 +120,7 @@ Top-level command groups:
 | `stock config show` | Show masked credential values and their source. |
 | `stock config path` | Print the config file path. |
 
-### Options
+#### Options
 
 | Command | Options |
 | --- | --- |
@@ -118,14 +128,14 @@ Top-level command groups:
 | `stock config show` | none |
 | `stock config path` | none |
 
-### Example input
+#### Example input
 
 ```sh
 stock config path
 stock config show
 ```
 
-### Example output
+#### Example output
 
 ```text
 /Users/alice/.stock/config
@@ -139,32 +149,32 @@ config_file: ~/.stock/config
 
 Detailed config behavior is documented in [docs/config-commands.md](docs/config-commands.md).
 
-## Account Commands
+### Account Commands
 
 `stock accounts list` calls Kiwoom account APIs and prints normalized holdings as
 a JSON array.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
 | `stock accounts list` | Return current holdings, excluding zero-quantity and Kiwoom detail rows. |
 | `stock accounts list --credit-detail` | Return cash rows plus credit loan-date detail rows. |
 
-### Options
+#### Options
 
 | Option | Description |
 | --- | --- |
 | `--credit-detail` | Show credit holdings by loan date. Defaults to `false`. |
 
-### Example input
+#### Example input
 
 ```sh
 stock accounts list
 stock accounts list --credit-detail
 ```
 
-### Example output
+#### Example output
 
 ```json
 [
@@ -204,32 +214,32 @@ Credit detail output adds `loan_date`:
 Detailed account API mapping and filtering rules are documented in
 [docs/account-commands.md](docs/account-commands.md).
 
-## Code Lookup Commands
+### Code Lookup Commands
 
 `stock codes lookup` resolves Korean stock names to Kiwoom six-digit stock
 codes.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
 | `stock codes lookup` | Return exact, partial, ambiguous, or not-found candidates for one or more names. |
 
-### Options
+#### Options
 
 | Option | Description |
 | --- | --- |
 | `--name string` | Stock name query. Repeat for multiple names. Required at least once. |
 | `--limit string` | Maximum candidates per query. Defaults to `10`. |
 
-### Example input
+#### Example input
 
 ```sh
 stock codes lookup --name 삼성전자
 stock codes lookup --name 삼성전자 --name 하이닉스 --limit 10
 ```
 
-### Example output
+#### Example output
 
 ```json
 {
@@ -262,30 +272,30 @@ commands such as `chart` or `orders`.
 Detailed lookup ranking and error output are documented in
 [docs/codes-commands.md](docs/codes-commands.md).
 
-## Market Helper Commands
+### Market Helper Commands
 
 `stock market` contains local helper commands. These commands do not call
 Kiwoom, do not read credentials, and do not touch token cache.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
 | `stock market tick` | Calculate the Korean stock tick size and nearest valid tick prices. |
 
-### Options
+#### Options
 
 | Option | Description |
 | --- | --- |
 | `--price string` | Positive whole-won stock price. Required. |
 
-### Example input
+#### Example input
 
 ```sh
 stock market tick --price 353333
 ```
 
-### Example output
+#### Example output
 
 ```json
 {
@@ -300,11 +310,11 @@ stock market tick --price 353333
 Detailed tick-size boundaries are documented in
 [docs/market-commands.md](docs/market-commands.md).
 
-## Chart Commands
+### Chart Commands
 
 `stock chart` returns normalized Kiwoom candle data.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
@@ -312,7 +322,7 @@ Detailed tick-size boundaries are documented in
 | `stock chart week` | Return weekly candles. |
 | `stock chart minute` | Return minute candles. |
 
-### Options
+#### Options
 
 | Option | Commands | Description |
 | --- | --- | --- |
@@ -322,7 +332,7 @@ Detailed tick-size boundaries are documented in
 | `--interval int` | minute | Minute interval: `1`, `3`, `5`, `10`, `15`, `30`, `45`, or `60`. Required. |
 | `--to string` | minute | End time in `YYYYMMDD` or `YYYYMMDDHHmmss`. Defaults to current local date. |
 
-### Example input
+#### Example input
 
 ```sh
 stock chart day --stock-code 005930 --count 2
@@ -330,7 +340,7 @@ stock chart week --stock-code 005930 --count 2 --to 20260618
 stock chart minute --stock-code 005930 --interval 1 --count 2 --to 20260618132000
 ```
 
-### Example output
+#### Example output
 
 Day/week:
 
@@ -377,7 +387,7 @@ Minute:
 Detailed chart API mapping and normalization rules are documented in
 [docs/chart-commands.md](docs/chart-commands.md).
 
-## Order Commands
+### Order Commands
 
 `stock orders` reads open orders and can submit live Kiwoom order requests.
 
@@ -387,7 +397,7 @@ does not perform confirmation, dry-run, quote checks, cash checks, collateral
 checks, loan checks, holdings checks, or price-limit checks. Those safety checks
 belong in the workflow or human process that calls this CLI.
 
-### Commands
+#### Commands
 
 | Command | Description |
 | --- | --- |
@@ -397,7 +407,7 @@ belong in the workflow or human process that calls this CLI.
 | `stock orders cancel cash` | Cancel a cash order. |
 | `stock orders cancel credit` | Cancel a credit order. |
 
-### Options
+#### Options
 
 `stock orders list`:
 
@@ -433,7 +443,7 @@ belong in the workflow or human process that calls this CLI.
 | `--quantity string` | Positive cancel quantity. Omit to cancel all remaining quantity. |
 | `--trading-venue string` | `SOR`, `KRX`, or `NXT`. Defaults to `SOR`. |
 
-### Example input
+#### Example input
 
 Read-only order list:
 
@@ -451,7 +461,7 @@ stock orders cancel cash --stock-code 005930 --original-order-id 0000140
 stock orders cancel credit --stock-code 005930 --original-order-id 0001615
 ```
 
-### Example output
+#### Example output
 
 Order list:
 
